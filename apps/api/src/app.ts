@@ -5,7 +5,9 @@ import { boardsRouter } from "./routes/boards.js";
 import { cardsRouter } from "./routes/cards.js";
 import { columnsRouter } from "./routes/columns.js";
 import { healthRouter } from "./routes/health.js";
+import { sendError } from "./lib/api-response.js";
 import { HttpError } from "./lib/http-error.js";
+import { invalidJson, notFound } from "./lib/http-error.js";
 
 function getErrorStatus(error: unknown) {
   if (error instanceof HttpError) {
@@ -26,12 +28,33 @@ function getErrorStatus(error: unknown) {
   return 500;
 }
 
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
+function normalizeError(error: unknown) {
+  if (error instanceof HttpError) {
+    return error;
   }
 
-  return "Internal server error";
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "type" in error &&
+    error.type === "entity.parse.failed"
+  ) {
+    return invalidJson();
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const statusCode = getErrorStatus(error);
+
+    if (
+      statusCode !== 500 &&
+      "message" in error &&
+      typeof error.message === "string"
+    ) {
+      return new HttpError(statusCode, "request_error", error.message);
+    }
+  }
+
+  return new HttpError(500, "internal_server_error", "Internal server error");
 }
 
 export function createApp() {
@@ -49,18 +72,24 @@ export function createApp() {
   app.use("/api/columns", columnsRouter);
   app.use("/api/cards", cardsRouter);
 
-  app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
-    const statusCode = getErrorStatus(error);
-    const errorMessage = statusCode === 500 ? "Internal server error" : getErrorMessage(error);
+  app.use((_request, _response, next) => {
+    next(notFound("Route not found"));
+  });
 
-    if (statusCode === 500) {
+  app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+    const normalizedError = normalizeError(error);
+
+    if (normalizedError.statusCode === 500) {
       console.error(error);
     }
 
-    return response.status(statusCode).json({
-      success: false,
-      error: errorMessage,
-    });
+    return sendError(
+      response,
+      normalizedError.statusCode,
+      normalizedError.code,
+      normalizedError.message,
+      normalizedError.details,
+    );
   });
 
   return app;

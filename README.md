@@ -18,6 +18,7 @@ The project currently includes:
 - model-level backend tests for schema validation and defaults
 - Express API endpoints for board, column, and card CRUD plus reorder and move flows
 - integration tests covering hydrated board detail and drag-oriented API contracts
+- schema-based API validation and consistent error response envelopes
 
 ## Workspace Layout
 
@@ -59,6 +60,7 @@ The API test suite covers:
 - column create, delete, and reorder
 - card create, update, delete, reorder, and cross-column move
 - hydrated board detail responses
+- validation failures, malformed JSON handling, and unknown-route error responses
 
 Or use Docker Compose:
 

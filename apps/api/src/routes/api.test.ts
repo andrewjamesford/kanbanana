@@ -194,6 +194,8 @@ test("invalid reorder payloads are rejected", async () => {
     .send({ columnOrder: [firstColumn.body.data._id] });
 
   assert.equal(invalidReorder.status, 400);
+  assert.equal(invalidReorder.body.error.code, "bad_request");
+  assert.equal(invalidReorder.body.error.message, "columnOrder must match the board's active columns");
 
   const cardResponse = await request(app)
     .post(`/api/columns/${firstColumn.body.data._id}/cards`)
@@ -209,6 +211,26 @@ test("invalid reorder payloads are rejected", async () => {
     });
 
   assert.equal(invalidMove.status, 400);
+  assert.equal(invalidMove.body.error.code, "bad_request");
+});
+
+test("validation failures return a consistent error shape with details", async () => {
+  const app = createApp();
+
+  const response = await request(app).post("/api/boards").send({
+    name: "",
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.success, false);
+  assert.equal(response.body.error.code, "validation_error");
+  assert.equal(response.body.error.message, "Request validation failed");
+  assert.deepEqual(response.body.error.details, [
+    {
+      path: "name",
+      message: "name is required",
+    },
+  ]);
 });
 
 test("invalid JSON bodies return a 400 response instead of a 500", async () => {
@@ -221,4 +243,16 @@ test("invalid JSON bodies return a 400 response instead of a 500", async () => {
 
   assert.equal(response.status, 400);
   assert.equal(response.body.success, false);
+  assert.equal(response.body.error.code, "invalid_json");
+});
+
+test("unknown routes return a consistent not-found payload", async () => {
+  const app = createApp();
+
+  const response = await request(app).get("/api/unknown");
+
+  assert.equal(response.status, 404);
+  assert.equal(response.body.success, false);
+  assert.equal(response.body.error.code, "not_found");
+  assert.equal(response.body.error.message, "Route not found");
 });
