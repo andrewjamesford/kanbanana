@@ -1,5 +1,7 @@
 # Kanbanana
 
+![Kanbanana mascot](./kanbanana-ken.png)
+
 Kanbanana is a TypeScript monorepo for a Kanban application with:
 
 - `apps/web`: Vite + React + TanStack Router + TanStack Query + Tailwind CSS + `shadcn/ui`
