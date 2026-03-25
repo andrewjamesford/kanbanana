@@ -15,13 +15,15 @@ export interface CardSummary {
   description: string | null;
 }
 
+export interface ColumnSummary {
+  _id: string;
+  boardId: string;
+  name: string;
+  cardOrder: string[];
+}
+
 export interface BoardDetail {
   board: BoardSummary;
-  columns: Array<{
-    _id: string;
-    boardId: string;
-    name: string;
-    cardOrder: string[];
-  }>;
+  columns: ColumnSummary[];
   cards: CardSummary[];
 }
