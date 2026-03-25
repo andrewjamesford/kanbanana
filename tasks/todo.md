@@ -7,7 +7,7 @@
 - [completed] Commit the PRD decision updates
 - [completed] Scaffold the monorepo structure for web, api, and shared packages
 - [completed] Commit and push the initial implementation scaffold
-- [pending] Implement backend data models for boards, columns, and cards with soft-delete support
+- [completed] Implement backend data models for boards, columns, and cards with soft-delete support
 - [pending] Implement Express API endpoints for board CRUD, hydrated board detail, column CRUD/reorder, and card CRUD/reorder/move
 - [pending] Add API validation, error handling, and consistent JSON response shapes
 - [pending] Add seed data and a repeatable local seed command
@@ -25,3 +25,5 @@
 - Finalized the remaining product decisions and replaced open questions with resolved requirements.
 - Added the initial monorepo scaffold for web, api, shared packages, and Docker-based local development.
 - Reviewed the scaffold against the PRD and converted the missing MVP work into an ordered implementation backlog.
+- Completed backend model scaffolding for boards, columns, and cards with shared soft-delete fields and schema-level tests.
+- Verified the first task with `npm run test -w @kanbanana/api` and `npm run lint -w @kanbanana/api`.
