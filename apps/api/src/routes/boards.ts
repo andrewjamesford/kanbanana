@@ -1,11 +1,19 @@
 import { Router } from "express";
 
 import { BoardModel, CardModel, ColumnModel } from "../models/index.js";
+import { sendSuccess } from "../lib/api-response.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { getBoardDetail } from "../lib/board-detail.js";
 import { badRequest, notFound } from "../lib/http-error.js";
 import { parseObjectId, readParam } from "../lib/object-id.js";
 import { serializeBoardSummary } from "../lib/serializers.js";
+import {
+  readJsonBody,
+  readOptionalNullableTrimmedString,
+  readOptionalTrimmedString,
+  readRequiredStringArray,
+  readRequiredTrimmedString,
+} from "../lib/validators.js";
 
 export const boardsRouter = Router();
 
@@ -14,34 +22,23 @@ boardsRouter.get(
   asyncHandler(async (_request, response) => {
     const boards = await BoardModel.find({ deletedAt: null }).sort({ createdAt: 1 });
 
-    response.json({
-      success: true,
-      data: boards.map(serializeBoardSummary),
-    });
+    return sendSuccess(response, boards.map(serializeBoardSummary));
   }),
 );
 
 boardsRouter.post(
   "/",
   asyncHandler(async (request, response) => {
-    const { name, description } = request.body as {
-      name?: string;
-      description?: string | null;
-    };
-
-    if (!name?.trim()) {
-      throw badRequest("Board name is required");
-    }
+    const body = readJsonBody(request.body);
+    const name = readRequiredTrimmedString(body, "name", "Board name is required");
+    const description = readOptionalNullableTrimmedString(body, "description");
 
     const board = await BoardModel.create({
       name,
       description: description ?? null,
     });
 
-    response.status(201).json({
-      success: true,
-      data: serializeBoardSummary(board),
-    });
+    return sendSuccess(response, serializeBoardSummary(board), 201);
   }),
 );
 
@@ -51,7 +48,7 @@ boardsRouter.get(
     const boardId = parseObjectId(readParam(request.params.boardId, "boardId"), "boardId");
     const boardDetail = await getBoardDetail(boardId.toString());
 
-    response.json({ success: true, data: boardDetail });
+    return sendSuccess(response, boardDetail);
   }),
 );
 
@@ -59,10 +56,9 @@ boardsRouter.patch(
   "/:boardId",
   asyncHandler(async (request, response) => {
     const boardId = parseObjectId(readParam(request.params.boardId, "boardId"), "boardId");
-    const { name, description } = request.body as {
-      name?: string;
-      description?: string | null;
-    };
+    const body = readJsonBody(request.body);
+    const name = readOptionalTrimmedString(body, "name", "Board name cannot be empty");
+    const description = readOptionalNullableTrimmedString(body, "description");
 
     const board = await BoardModel.findOne({
       _id: boardId,
@@ -74,10 +70,6 @@ boardsRouter.patch(
     }
 
     if (name !== undefined) {
-      if (!name.trim()) {
-        throw badRequest("Board name cannot be empty");
-      }
-
       board.name = name;
     }
 
@@ -87,7 +79,7 @@ boardsRouter.patch(
 
     await board.save();
 
-    response.json({ success: true, data: serializeBoardSummary(board) });
+    return sendSuccess(response, serializeBoardSummary(board));
   }),
 );
 
@@ -110,7 +102,7 @@ boardsRouter.delete(
     await ColumnModel.updateMany({ boardId, deletedAt: null }, { deletedAt });
     await CardModel.updateMany({ boardId, deletedAt: null }, { deletedAt });
 
-    response.json({ success: true, data: { _id: board._id.toString(), deletedAt } });
+    return sendSuccess(response, { _id: board._id.toString(), deletedAt });
   }),
 );
 
@@ -118,11 +110,8 @@ boardsRouter.post(
   "/:boardId/columns",
   asyncHandler(async (request, response) => {
     const boardId = parseObjectId(readParam(request.params.boardId, "boardId"), "boardId");
-    const { name } = request.body as { name?: string };
-
-    if (!name?.trim()) {
-      throw badRequest("Column name is required");
-    }
+    const body = readJsonBody(request.body);
+    const name = readRequiredTrimmedString(body, "name", "Column name is required");
 
     const board = await BoardModel.findOne({ _id: boardId, deletedAt: null });
 
@@ -138,15 +127,16 @@ boardsRouter.post(
     board.columnOrder.push(column._id);
     await board.save();
 
-    response.status(201).json({
-      success: true,
-      data: {
+    return sendSuccess(
+      response,
+      {
         _id: column._id.toString(),
         boardId: column.boardId.toString(),
         name: column.name,
         cardOrder: [],
       },
-    });
+      201,
+    );
   }),
 );
 
@@ -154,11 +144,8 @@ boardsRouter.post(
   "/:boardId/columns/reorder",
   asyncHandler(async (request, response) => {
     const boardId = parseObjectId(readParam(request.params.boardId, "boardId"), "boardId");
-    const { columnOrder } = request.body as { columnOrder?: string[] };
-
-    if (!Array.isArray(columnOrder)) {
-      throw badRequest("columnOrder must be an array");
-    }
+    const body = readJsonBody(request.body);
+    const columnOrder = readRequiredStringArray(body, "columnOrder", "columnOrder must be an array");
 
     const board = await BoardModel.findOne({ _id: boardId, deletedAt: null });
 
@@ -182,12 +169,9 @@ boardsRouter.post(
     board.columnOrder = columnOrder.map((value) => parseObjectId(value, "columnOrder entry"));
     await board.save();
 
-    response.json({
-      success: true,
-      data: {
-        _id: board._id.toString(),
-        columnOrder: board.columnOrder.map((value) => value.toString()),
-      },
+    return sendSuccess(response, {
+      _id: board._id.toString(),
+      columnOrder: board.columnOrder.map((value) => value.toString()),
     });
   }),
 );

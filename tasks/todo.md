@@ -9,7 +9,7 @@
 - [completed] Commit and push the initial implementation scaffold
 - [completed] Implement backend data models for boards, columns, and cards with soft-delete support
 - [completed] Implement Express API endpoints for board CRUD, hydrated board detail, column CRUD/reorder, and card CRUD/reorder/move
-- [pending] Add API validation, error handling, and consistent JSON response shapes
+- [completed] Add API validation, error handling, and consistent JSON response shapes
 - [pending] Add seed data and a repeatable local seed command
 - [pending] Replace static frontend board list and board detail data with TanStack Query-backed API integration
 - [pending] Build board, column, and card create/edit/delete flows using `shadcn/ui` components
@@ -29,3 +29,4 @@
 - Verified the first task with `npm run test -w @kanbanana/api` and `npm run lint -w @kanbanana/api`.
 - Implemented the MVP API surface for board, column, and card CRUD plus reorder and move flows.
 - Verified the API endpoint task with `npm run test -w @kanbanana/api` and `npm run lint -w @kanbanana/api`.
+- Added shared API response helpers and request validators so success and error JSON shapes are consistent across the Express API.

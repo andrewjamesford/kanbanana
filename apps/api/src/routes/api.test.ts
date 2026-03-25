@@ -194,6 +194,9 @@ test("invalid reorder payloads are rejected", async () => {
     .send({ columnOrder: [firstColumn.body.data._id] });
 
   assert.equal(invalidReorder.status, 400);
+  assert.equal(invalidReorder.body.success, false);
+  assert.equal(invalidReorder.body.error.code, "BAD_REQUEST");
+  assert.equal(invalidReorder.body.error.message, "columnOrder must match the board's active columns");
 
   const cardResponse = await request(app)
     .post(`/api/columns/${firstColumn.body.data._id}/cards`)
@@ -209,6 +212,12 @@ test("invalid reorder payloads are rejected", async () => {
     });
 
   assert.equal(invalidMove.status, 400);
+  assert.equal(invalidMove.body.success, false);
+  assert.equal(invalidMove.body.error.code, "BAD_REQUEST");
+  assert.equal(
+    invalidMove.body.error.message,
+    "destinationCardOrder must match the destination cards after the move",
+  );
 });
 
 test("invalid JSON bodies return a 400 response instead of a 500", async () => {
@@ -221,4 +230,29 @@ test("invalid JSON bodies return a 400 response instead of a 500", async () => {
 
   assert.equal(response.status, 400);
   assert.equal(response.body.success, false);
+  assert.equal(response.body.error.code, "BAD_REQUEST");
+  assert.equal(response.body.error.message, "Request body contains invalid JSON");
+});
+
+test("validation errors and missing API routes use the shared error response shape", async () => {
+  const app = createApp();
+
+  const validationResponse = await request(app).post("/api/boards").send({
+    description: "missing name",
+  });
+
+  assert.equal(validationResponse.status, 400);
+  assert.equal(validationResponse.body.success, false);
+  assert.equal(validationResponse.body.error.code, "VALIDATION_ERROR");
+  assert.equal(validationResponse.body.error.message, "Board name is required");
+  assert.deepEqual(validationResponse.body.error.details, [
+    { field: "name", issue: "required" },
+  ]);
+
+  const missingRouteResponse = await request(app).get("/api/does-not-exist");
+
+  assert.equal(missingRouteResponse.status, 404);
+  assert.equal(missingRouteResponse.body.success, false);
+  assert.equal(missingRouteResponse.body.error.code, "NOT_FOUND");
+  assert.equal(missingRouteResponse.body.error.message, "API route not found");
 });

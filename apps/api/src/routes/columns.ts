@@ -1,9 +1,16 @@
 import { Router } from "express";
 
 import { BoardModel, CardModel, ColumnModel } from "../models/index.js";
+import { sendSuccess } from "../lib/api-response.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { badRequest, notFound } from "../lib/http-error.js";
 import { parseObjectId, readParam } from "../lib/object-id.js";
+import {
+  readJsonBody,
+  readOptionalNullableTrimmedString,
+  readRequiredStringArray,
+  readRequiredTrimmedString,
+} from "../lib/validators.js";
 
 export const columnsRouter = Router();
 
@@ -11,11 +18,8 @@ columnsRouter.patch(
   "/:columnId",
   asyncHandler(async (request, response) => {
     const columnId = parseObjectId(readParam(request.params.columnId, "columnId"), "columnId");
-    const { name } = request.body as { name?: string };
-
-    if (name === undefined || !name.trim()) {
-      throw badRequest("Column name is required");
-    }
+    const body = readJsonBody(request.body);
+    const name = readRequiredTrimmedString(body, "name", "Column name is required");
 
     const column = await ColumnModel.findOne({
       _id: columnId,
@@ -29,14 +33,11 @@ columnsRouter.patch(
     column.name = name;
     await column.save();
 
-    response.json({
-      success: true,
-      data: {
-        _id: column._id.toString(),
-        boardId: column.boardId.toString(),
-        name: column.name,
-        cardOrder: column.cardOrder.map((value) => value.toString()),
-      },
+    return sendSuccess(response, {
+      _id: column._id.toString(),
+      boardId: column.boardId.toString(),
+      name: column.name,
+      cardOrder: column.cardOrder.map((value) => value.toString()),
     });
   }),
 );
@@ -67,13 +68,10 @@ columnsRouter.delete(
       { deletedAt },
     );
 
-    response.json({
-      success: true,
-      data: {
-        _id: column._id.toString(),
-        boardId: column.boardId.toString(),
-        deletedAt,
-      },
+    return sendSuccess(response, {
+      _id: column._id.toString(),
+      boardId: column.boardId.toString(),
+      deletedAt,
     });
   }),
 );
@@ -82,14 +80,9 @@ columnsRouter.post(
   "/:columnId/cards",
   asyncHandler(async (request, response) => {
     const columnId = parseObjectId(readParam(request.params.columnId, "columnId"), "columnId");
-    const { title, description } = request.body as {
-      title?: string;
-      description?: string | null;
-    };
-
-    if (!title?.trim()) {
-      throw badRequest("Card title is required");
-    }
+    const body = readJsonBody(request.body);
+    const title = readRequiredTrimmedString(body, "title", "Card title is required");
+    const description = readOptionalNullableTrimmedString(body, "description");
 
     const column = await ColumnModel.findOne({ _id: columnId, deletedAt: null });
 
@@ -107,16 +100,17 @@ columnsRouter.post(
     column.cardOrder.push(card._id);
     await column.save();
 
-    response.status(201).json({
-      success: true,
-      data: {
+    return sendSuccess(
+      response,
+      {
         _id: card._id.toString(),
         boardId: card.boardId.toString(),
         columnId: card.columnId.toString(),
         title: card.title,
         description: card.description,
       },
-    });
+      201,
+    );
   }),
 );
 
@@ -124,11 +118,8 @@ columnsRouter.post(
   "/:columnId/cards/reorder",
   asyncHandler(async (request, response) => {
     const columnId = parseObjectId(readParam(request.params.columnId, "columnId"), "columnId");
-    const { cardOrder } = request.body as { cardOrder?: string[] };
-
-    if (!Array.isArray(cardOrder)) {
-      throw badRequest("cardOrder must be an array");
-    }
+    const body = readJsonBody(request.body);
+    const cardOrder = readRequiredStringArray(body, "cardOrder", "cardOrder must be an array");
 
     const column = await ColumnModel.findOne({ _id: columnId, deletedAt: null });
 
@@ -156,12 +147,9 @@ columnsRouter.post(
     column.cardOrder = cardOrder.map((value) => parseObjectId(value, "cardOrder entry"));
     await column.save();
 
-    response.json({
-      success: true,
-      data: {
-        _id: column._id.toString(),
-        cardOrder: column.cardOrder.map((value) => value.toString()),
-      },
+    return sendSuccess(response, {
+      _id: column._id.toString(),
+      cardOrder: column.cardOrder.map((value) => value.toString()),
     });
   }),
 );
