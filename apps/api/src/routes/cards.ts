@@ -137,10 +137,14 @@ cardsRouter.post(
 
     const sourceCards = await CardModel.find({
       _id: { $in: sourceColumn.cardOrder },
+      columnId: sourceColumn._id,
+      boardId: sourceColumn.boardId,
       deletedAt: null,
     });
     const destinationCards = await CardModel.find({
       _id: { $in: destinationColumn.cardOrder },
+      columnId: destinationColumn._id,
+      boardId: destinationColumn.boardId,
       deletedAt: null,
     });
 
@@ -170,15 +174,27 @@ cardsRouter.post(
       throw badRequest("destinationCardOrder must match the destination cards after the move");
     }
 
-    sourceColumn.cardOrder = sourceCardOrder.map((value) =>
-      parseObjectId(value, "sourceCardOrder entry"),
-    );
-    destinationColumn.cardOrder = destinationCardOrder.map((value) =>
-      parseObjectId(value, "destinationCardOrder entry"),
-    );
-    card.columnId = destinationColumn._id;
+    const session = await CardModel.startSession();
 
-    await Promise.all([sourceColumn.save(), destinationColumn.save(), card.save()]);
+    try {
+      await session.withTransaction(async () => {
+        sourceColumn.cardOrder = sourceCardOrder.map((value) =>
+          parseObjectId(value, "sourceCardOrder entry"),
+        );
+        destinationColumn.cardOrder = destinationCardOrder.map((value) =>
+          parseObjectId(value, "destinationCardOrder entry"),
+        );
+        card.columnId = destinationColumn._id;
+
+        await Promise.all([
+          sourceColumn.save({ session }),
+          destinationColumn.save({ session }),
+          card.save({ session }),
+        ]);
+      });
+    } finally {
+      await session.endSession();
+    }
 
     response.json({
       success: true,
