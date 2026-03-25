@@ -8,6 +8,15 @@ Kanbanana is a TypeScript monorepo for a Kanban application with:
 - `apps/api`: Express + Mongoose
 - `packages/shared`: shared types and utilities
 
+## Current Status
+
+The project currently includes:
+
+- planning documentation in `Docs/PRD.md`
+- a monorepo scaffold for the web app, API, and shared package
+- backend Mongoose models for boards, columns, and cards with soft-delete fields
+- model-level backend tests for schema validation and defaults
+
 ## Workspace Layout
 
 ```text
@@ -34,6 +43,12 @@ Run the apps locally:
 ```bash
 npm run dev:web
 npm run dev:api
+```
+
+Run the backend model tests:
+
+```bash
+npm run test -w @kanbanana/api
 ```
 
 Or use Docker Compose:
