@@ -3,15 +3,17 @@ import { after, afterEach, before, test } from "node:test";
 
 import request from "supertest";
 import mongoose from "mongoose";
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { MongoMemoryReplSet } from "mongodb-memory-server";
 
 import { createApp } from "../app.js";
 import { BoardModel, CardModel, ColumnModel } from "../models/index.js";
 
-let mongoServer: MongoMemoryServer;
+let mongoServer: MongoMemoryReplSet;
 
 before(async () => {
-  mongoServer = await MongoMemoryServer.create();
+  mongoServer = await MongoMemoryReplSet.create({
+    replSet: { count: 1 },
+  });
   await mongoose.connect(mongoServer.getUri(), {
     dbName: "kanbanana-api-tests",
   });
@@ -207,4 +209,16 @@ test("invalid reorder payloads are rejected", async () => {
     });
 
   assert.equal(invalidMove.status, 400);
+});
+
+test("invalid JSON bodies return a 400 response instead of a 500", async () => {
+  const app = createApp();
+
+  const response = await request(app)
+    .post("/api/boards")
+    .set("Content-Type", "application/json")
+    .send("{ invalid json");
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.success, false);
 });

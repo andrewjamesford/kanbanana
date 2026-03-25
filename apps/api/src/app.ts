@@ -7,6 +7,33 @@ import { columnsRouter } from "./routes/columns.js";
 import { healthRouter } from "./routes/health.js";
 import { HttpError } from "./lib/http-error.js";
 
+function getErrorStatus(error: unknown) {
+  if (error instanceof HttpError) {
+    return error.statusCode;
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const statusCode = "statusCode" in error ? error.statusCode : undefined;
+    const status = "status" in error ? error.status : undefined;
+    const resolvedStatus =
+      typeof statusCode === "number" ? statusCode : typeof status === "number" ? status : undefined;
+
+    if (resolvedStatus && resolvedStatus >= 400 && resolvedStatus < 600) {
+      return resolvedStatus;
+    }
+  }
+
+  return 500;
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Internal server error";
+}
+
 export function createApp() {
   const app = express();
 
@@ -23,18 +50,16 @@ export function createApp() {
   app.use("/api/cards", cardsRouter);
 
   app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
-    if (error instanceof HttpError) {
-      return response.status(error.statusCode).json({
-        success: false,
-        error: error.message,
-      });
+    const statusCode = getErrorStatus(error);
+    const errorMessage = statusCode === 500 ? "Internal server error" : getErrorMessage(error);
+
+    if (statusCode === 500) {
+      console.error(error);
     }
 
-    console.error(error);
-
-    return response.status(500).json({
+    return response.status(statusCode).json({
       success: false,
-      error: "Internal server error",
+      error: errorMessage,
     });
   });
 
