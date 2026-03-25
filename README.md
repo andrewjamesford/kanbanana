@@ -40,3 +40,7 @@ Or use Docker Compose:
 docker compose up --build
 ```
 
+Default local ports:
+
+- Web: `3100`
+- API: `4100`

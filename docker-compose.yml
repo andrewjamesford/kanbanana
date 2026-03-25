@@ -16,10 +16,10 @@ services:
     container_name: kanbanana-api
     environment:
       NODE_ENV: development
-      PORT: 4000
+      PORT: 4100
       MONGODB_URI: mongodb://mongodb:27017/kanbanana
     ports:
-      - "4000:4000"
+      - "4100:4100"
     depends_on:
       - mongodb
 
@@ -29,12 +29,11 @@ services:
       dockerfile: apps/web/Dockerfile
     container_name: kanbanana-web
     environment:
-      VITE_API_URL: http://localhost:4000
+      VITE_API_URL: http://localhost:4100
     ports:
-      - "3000:3000"
+      - "3100:3100"
     depends_on:
       - api
 
 volumes:
   mongodb_data:
-
