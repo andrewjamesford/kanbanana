@@ -1,11 +1,12 @@
 import cors from "cors";
 import express from "express";
 
+import { sendError, sendSuccess } from "./lib/api-response.js";
+import { badRequest, notFound, HttpError } from "./lib/http-error.js";
 import { boardsRouter } from "./routes/boards.js";
 import { cardsRouter } from "./routes/cards.js";
 import { columnsRouter } from "./routes/columns.js";
 import { healthRouter } from "./routes/health.js";
-import { HttpError } from "./lib/http-error.js";
 
 function getErrorStatus(error: unknown) {
   if (error instanceof HttpError) {
@@ -26,12 +27,33 @@ function getErrorStatus(error: unknown) {
   return 500;
 }
 
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
+function getErrorPayload(error: unknown, statusCode: number) {
+  if (error instanceof HttpError) {
+    return {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+    };
   }
 
-  return "Internal server error";
+  if (error instanceof SyntaxError && "body" in error) {
+    return {
+      code: "INVALID_JSON",
+      message: "Request body contains invalid JSON",
+    };
+  }
+
+  if (statusCode === 500) {
+    return {
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Internal server error",
+    };
+  }
+
+  return {
+    code: "UNKNOWN_ERROR",
+    message: error instanceof Error ? error.message : "Request failed",
+  };
 }
 
 export function createApp() {
@@ -41,26 +63,30 @@ export function createApp() {
   app.use(express.json());
 
   app.get("/", (_request, response) => {
-    response.json({ success: true, data: { name: "kanbanana-api" } });
+    return sendSuccess(response, { name: "kanbanana-api" });
   });
 
   app.use("/api/health", healthRouter);
   app.use("/api/boards", boardsRouter);
   app.use("/api/columns", columnsRouter);
   app.use("/api/cards", cardsRouter);
+  app.use("/api", (_request, _response, next) => {
+    next(notFound("API route not found"));
+  });
 
   app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
-    const statusCode = getErrorStatus(error);
-    const errorMessage = statusCode === 500 ? "Internal server error" : getErrorMessage(error);
+    const resolvedError =
+      error instanceof SyntaxError && "body" in error
+        ? badRequest("Request body contains invalid JSON")
+        : error;
+    const statusCode = getErrorStatus(resolvedError);
+    const errorPayload = getErrorPayload(resolvedError, statusCode);
 
     if (statusCode === 500) {
       console.error(error);
     }
 
-    return response.status(statusCode).json({
-      success: false,
-      error: errorMessage,
-    });
+    return sendError(response, errorPayload, statusCode);
   });
 
   return app;

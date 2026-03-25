@@ -1,9 +1,17 @@
 import { Router } from "express";
 
 import { CardModel, ColumnModel } from "../models/index.js";
+import { sendSuccess } from "../lib/api-response.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { badRequest, notFound } from "../lib/http-error.js";
 import { objectIdEquals, parseObjectId, readParam } from "../lib/object-id.js";
+import {
+  readJsonBody,
+  readOptionalNullableTrimmedString,
+  readOptionalTrimmedString,
+  readRequiredStringArray,
+  readRequiredTrimmedString,
+} from "../lib/validators.js";
 
 export const cardsRouter = Router();
 
@@ -11,10 +19,9 @@ cardsRouter.patch(
   "/:cardId",
   asyncHandler(async (request, response) => {
     const cardId = parseObjectId(readParam(request.params.cardId, "cardId"), "cardId");
-    const { title, description } = request.body as {
-      title?: string;
-      description?: string | null;
-    };
+    const body = readJsonBody(request.body);
+    const title = readOptionalTrimmedString(body, "title", "Card title cannot be empty");
+    const description = readOptionalNullableTrimmedString(body, "description");
 
     const card = await CardModel.findOne({ _id: cardId, deletedAt: null });
 
@@ -23,10 +30,6 @@ cardsRouter.patch(
     }
 
     if (title !== undefined) {
-      if (!title.trim()) {
-        throw badRequest("Card title cannot be empty");
-      }
-
       card.title = title;
     }
 
@@ -36,15 +39,12 @@ cardsRouter.patch(
 
     await card.save();
 
-    response.json({
-      success: true,
-      data: {
-        _id: card._id.toString(),
-        boardId: card.boardId.toString(),
-        columnId: card.columnId.toString(),
-        title: card.title,
-        description: card.description,
-      },
+    return sendSuccess(response, {
+      _id: card._id.toString(),
+      boardId: card.boardId.toString(),
+      columnId: card.columnId.toString(),
+      title: card.title,
+      description: card.description,
     });
   }),
 );
@@ -70,13 +70,10 @@ cardsRouter.delete(
       { $pull: { cardOrder: card._id } },
     );
 
-    response.json({
-      success: true,
-      data: {
-        _id: card._id.toString(),
-        columnId: card.columnId.toString(),
-        deletedAt,
-      },
+    return sendSuccess(response, {
+      _id: card._id.toString(),
+      columnId: card.columnId.toString(),
+      deletedAt,
     });
   }),
 );
@@ -85,25 +82,27 @@ cardsRouter.post(
   "/:cardId/move",
   asyncHandler(async (request, response) => {
     const cardId = parseObjectId(readParam(request.params.cardId, "cardId"), "cardId");
-    const {
-      sourceColumnId,
-      destinationColumnId,
-      sourceCardOrder,
-      destinationCardOrder,
-    } = request.body as {
-      sourceColumnId?: string;
-      destinationColumnId?: string;
-      sourceCardOrder?: string[];
-      destinationCardOrder?: string[];
-    };
-
-    if (!sourceColumnId || !destinationColumnId) {
-      throw badRequest("sourceColumnId and destinationColumnId are required");
-    }
-
-    if (!Array.isArray(sourceCardOrder) || !Array.isArray(destinationCardOrder)) {
-      throw badRequest("sourceCardOrder and destinationCardOrder must be arrays");
-    }
+    const body = readJsonBody(request.body);
+    const sourceColumnId = readRequiredTrimmedString(
+      body,
+      "sourceColumnId",
+      "sourceColumnId is required",
+    );
+    const destinationColumnId = readRequiredTrimmedString(
+      body,
+      "destinationColumnId",
+      "destinationColumnId is required",
+    );
+    const sourceCardOrder = readRequiredStringArray(
+      body,
+      "sourceCardOrder",
+      "sourceCardOrder must be an array",
+    );
+    const destinationCardOrder = readRequiredStringArray(
+      body,
+      "destinationCardOrder",
+      "destinationCardOrder must be an array",
+    );
 
     const sourceId = parseObjectId(sourceColumnId, "sourceColumnId");
     const destinationId = parseObjectId(destinationColumnId, "destinationColumnId");
@@ -196,25 +195,22 @@ cardsRouter.post(
       await session.endSession();
     }
 
-    response.json({
-      success: true,
-      data: {
-        boardId: card.boardId.toString(),
-        updatedCard: {
-          _id: card._id.toString(),
-          columnId: card.columnId.toString(),
-        },
-        updatedColumns: [
-          {
-            _id: sourceColumn._id.toString(),
-            cardOrder: sourceColumn.cardOrder.map((value) => value.toString()),
-          },
-          {
-            _id: destinationColumn._id.toString(),
-            cardOrder: destinationColumn.cardOrder.map((value) => value.toString()),
-          },
-        ],
+    return sendSuccess(response, {
+      boardId: card.boardId.toString(),
+      updatedCard: {
+        _id: card._id.toString(),
+        columnId: card.columnId.toString(),
       },
+      updatedColumns: [
+        {
+          _id: sourceColumn._id.toString(),
+          cardOrder: sourceColumn.cardOrder.map((value) => value.toString()),
+        },
+        {
+          _id: destinationColumn._id.toString(),
+          cardOrder: destinationColumn.cardOrder.map((value) => value.toString()),
+        },
+      ],
     });
   }),
 );
