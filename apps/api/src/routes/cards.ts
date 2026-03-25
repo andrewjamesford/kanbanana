@@ -1,9 +1,12 @@
 import { Router } from "express";
+import { z } from "zod";
 
+import { sendSuccess } from "../lib/api-response.js";
 import { CardModel, ColumnModel } from "../models/index.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { badRequest, notFound } from "../lib/http-error.js";
 import { objectIdEquals, parseObjectId, readParam } from "../lib/object-id.js";
+import { parseBody } from "../lib/validation.js";
 
 export const cardsRouter = Router();
 
@@ -11,10 +14,18 @@ cardsRouter.patch(
   "/:cardId",
   asyncHandler(async (request, response) => {
     const cardId = parseObjectId(readParam(request.params.cardId, "cardId"), "cardId");
-    const { title, description } = request.body as {
-      title?: string;
-      description?: string | null;
-    };
+    const { title, description } = parseBody(
+      z
+        .object({
+          title: z.string().trim().min(1, "title cannot be empty").optional(),
+          description: z.string().trim().nullable().optional(),
+        })
+        .refine((value) => value.title !== undefined || value.description !== undefined, {
+          message: "At least one field must be provided",
+          path: [],
+        }),
+      request.body,
+    );
 
     const card = await CardModel.findOne({ _id: cardId, deletedAt: null });
 
@@ -23,10 +34,6 @@ cardsRouter.patch(
     }
 
     if (title !== undefined) {
-      if (!title.trim()) {
-        throw badRequest("Card title cannot be empty");
-      }
-
       card.title = title;
     }
 
@@ -36,15 +43,12 @@ cardsRouter.patch(
 
     await card.save();
 
-    response.json({
-      success: true,
-      data: {
+    return sendSuccess(response, {
         _id: card._id.toString(),
         boardId: card.boardId.toString(),
         columnId: card.columnId.toString(),
         title: card.title,
         description: card.description,
-      },
     });
   }),
 );
@@ -70,13 +74,10 @@ cardsRouter.delete(
       { $pull: { cardOrder: card._id } },
     );
 
-    response.json({
-      success: true,
-      data: {
+    return sendSuccess(response, {
         _id: card._id.toString(),
         columnId: card.columnId.toString(),
         deletedAt,
-      },
     });
   }),
 );
@@ -90,20 +91,15 @@ cardsRouter.post(
       destinationColumnId,
       sourceCardOrder,
       destinationCardOrder,
-    } = request.body as {
-      sourceColumnId?: string;
-      destinationColumnId?: string;
-      sourceCardOrder?: string[];
-      destinationCardOrder?: string[];
-    };
-
-    if (!sourceColumnId || !destinationColumnId) {
-      throw badRequest("sourceColumnId and destinationColumnId are required");
-    }
-
-    if (!Array.isArray(sourceCardOrder) || !Array.isArray(destinationCardOrder)) {
-      throw badRequest("sourceCardOrder and destinationCardOrder must be arrays");
-    }
+    } = parseBody(
+      z.object({
+        sourceColumnId: z.string().min(1),
+        destinationColumnId: z.string().min(1),
+        sourceCardOrder: z.array(z.string().min(1)),
+        destinationCardOrder: z.array(z.string().min(1)),
+      }),
+      request.body,
+    );
 
     const sourceId = parseObjectId(sourceColumnId, "sourceColumnId");
     const destinationId = parseObjectId(destinationColumnId, "destinationColumnId");
@@ -196,9 +192,7 @@ cardsRouter.post(
       await session.endSession();
     }
 
-    response.json({
-      success: true,
-      data: {
+    return sendSuccess(response, {
         boardId: card.boardId.toString(),
         updatedCard: {
           _id: card._id.toString(),
@@ -214,7 +208,6 @@ cardsRouter.post(
             cardOrder: destinationColumn.cardOrder.map((value) => value.toString()),
           },
         ],
-      },
     });
   }),
 );

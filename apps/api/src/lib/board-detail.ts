@@ -25,12 +25,27 @@ export async function getBoardDetail(boardId: string) {
   });
 
   const cardsById = new Map(cards.map((card) => [card._id.toString(), card]));
+  const seenCardIds = new Set<string>();
   const orderedCards = orderedColumns.flatMap((column) =>
     column.cardOrder
       .map((cardId) => cardsById.get(cardId.toString()))
-      .filter((card): card is NonNullable<typeof card> => Boolean(card)),
+      .filter((card): card is NonNullable<typeof card> => {
+        if (!card) {
+          return false;
+        }
+
+        if (card.columnId.toString() !== column._id.toString()) {
+          return false;
+        }
+
+        if (seenCardIds.has(card._id.toString())) {
+          return false;
+        }
+
+        seenCardIds.add(card._id.toString());
+        return true;
+      }),
   );
 
   return serializeBoardDetail(board, orderedColumns, orderedCards);
 }
-
