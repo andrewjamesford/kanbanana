@@ -482,8 +482,7 @@ Use a monorepo structure from the start, with `apps/web` and `apps/api` as the p
 
 ## 19. Open Questions
 
-- Should authentication remain explicitly out of scope for the MVP?
-- Should soft-deleted records be restorable in MVP, or only hidden from normal reads?
+- None currently. Update this section as new planning decisions emerge.
 
 ## 20. Decisions Log
 
@@ -492,14 +491,15 @@ Use a monorepo structure from the start, with `apps/web` and `apps/api` as the p
 - Recommended: use `dnd-kit` for drag-and-drop implementation
 - Confirmed: board descriptions are optional and included from day one
 - Confirmed: deletes are soft deletes
+- Confirmed: soft-deleted records are only hidden from normal reads in MVP, with no restore flow in MVP
 - Confirmed: initial board load should use one hydrated endpoint for board, columns, and lightweight cards
 - Confirmed: use `lean()` on read-heavy Mongoose queries where appropriate
 - Confirmed: include seed data for local development
-- Pending: confirm whether authentication remains explicitly out of scope
+- Confirmed: authentication remains explicitly out of scope for MVP
 
 ## 21. Recommended Next Steps
 
-1. Confirm whether authentication is intentionally deferred.
-2. Decide whether soft-deleted records need restore support in MVP.
-3. Turn this PRD into an implementation plan.
-4. Scaffold the monorepo.
+1. Turn this PRD into an implementation plan.
+2. Scaffold the monorepo.
+3. Add dependency installation and baseline app configuration.
+4. Begin implementation of the board list and board detail flows.
