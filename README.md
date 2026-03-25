@@ -42,6 +42,12 @@ Or use Docker Compose:
 docker compose up --build
 ```
 
+For day-to-day development after the first build, Docker Compose is configured for live reload through bind mounts:
+
+```bash
+docker compose up
+```
+
 Default local ports:
 
 - Web: `3100`
