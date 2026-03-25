@@ -8,7 +8,7 @@
 - [completed] Scaffold the monorepo structure for web, api, and shared packages
 - [completed] Commit and push the initial implementation scaffold
 - [completed] Implement backend data models for boards, columns, and cards with soft-delete support
-- [pending] Implement Express API endpoints for board CRUD, hydrated board detail, column CRUD/reorder, and card CRUD/reorder/move
+- [completed] Implement Express API endpoints for board CRUD, hydrated board detail, column CRUD/reorder, and card CRUD/reorder/move
 - [pending] Add API validation, error handling, and consistent JSON response shapes
 - [pending] Add seed data and a repeatable local seed command
 - [pending] Replace static frontend board list and board detail data with TanStack Query-backed API integration
@@ -27,3 +27,5 @@
 - Reviewed the scaffold against the PRD and converted the missing MVP work into an ordered implementation backlog.
 - Completed backend model scaffolding for boards, columns, and cards with shared soft-delete fields and schema-level tests.
 - Verified the first task with `npm run test -w @kanbanana/api` and `npm run lint -w @kanbanana/api`.
+- Implemented the MVP API surface for board, column, and card CRUD plus reorder and move flows.
+- Verified the API endpoint task with `npm run test -w @kanbanana/api` and `npm run lint -w @kanbanana/api`.
