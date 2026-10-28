@@ -1,77 +1,187 @@
-import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { BoardSummary } from "@kanbanana/shared";
+import {
+  ArrowRight,
+  LayoutDashboard,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { api, boardsQuery } from "../lib/api";
+import { Button } from "../components/ui/button";
+import { EntityDialog, DeleteDialog } from "../components/entity-dialog";
+import { ErrorState, LoadingState } from "../components/query-state";
 
 export function BoardsPage() {
+  const query = useQuery(boardsQuery);
+  const client = useQueryClient();
+  const navigate = useNavigate();
+  const [editor, setEditor] = useState<BoardSummary | "new" | null>(null);
+  const [deleting, setDeleting] = useState<BoardSummary | null>(null);
+  const refresh = () => client.invalidateQueries({ queryKey: ["boards"] });
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-10">
-      <section className="relative overflow-hidden rounded-[2rem] border border-border bg-card px-6 py-8 shadow-sm sm:px-8 lg:px-10">
-        <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-r from-primary/35 via-secondary/30 to-transparent blur-3xl" />
-
-        <div className="relative grid items-center gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,420px)]">
-          <div className="grid gap-5">
-            <span className="text-sm uppercase tracking-[0.24em] text-muted-foreground">
-              Kanbanana
-            </span>
-
-            <div className="grid gap-4">
-              <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-card-foreground sm:text-5xl">
-                Calm task flow with a little more personality.
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Kanbanana gives boards, columns, and cards a warmer starting
-                point, with a clean React shell ready for API data, drag and
-                drop, and the mascot front and center.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm">
-                Create board
-              </button>
-              <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                MVP scaffold
+    <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+      <section className="relative mb-12 flex items-center justify-between gap-5 overflow-hidden rounded-2xl border border-border bg-secondary p-7 sm:p-10">
+        <div className="relative z-10 max-w-xl space-y-4">
+          <span className="text-xs font-medium uppercase tracking-[.2em] text-muted-foreground">
+            Your space to make progress
+          </span>
+          <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+            Good things start
+            <br />
+            with a little order.
+          </h1>
+          <p className="max-w-md text-sm leading-6 text-muted-foreground">
+            Big plans, small tasks, and everything in between. Give your ideas a
+            board and take it one card at a time.
+          </p>
+          <Button onClick={() => setEditor("new")}>
+            <Plus />
+            Create board
+          </Button>
+        </div>
+        <img
+          src="/kanbanana-ken.png"
+          alt="Kanbanana Ken holding a task board"
+          className="hidden w-60 shrink-0 object-contain md:block"
+        />
+      </section>
+      <section aria-labelledby="boards-heading">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <h2
+              id="boards-heading"
+              className="text-2xl font-semibold tracking-tight"
+            >
+              Your boards
+            </h2>
+            {query.data && (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                {query.data.length}
               </span>
-            </div>
+            )}
           </div>
-
-          <div className="mx-auto w-full max-w-sm">
-            <div className="relative rounded-[1.75rem] border border-border/80 bg-background/80 p-4 shadow-[0_24px_60px_-28px_rgba(78,64,11,0.45)] backdrop-blur">
-              <div className="absolute inset-x-8 bottom-3 h-10 rounded-full bg-primary/20 blur-2xl" />
-              <img
-                src="/kanbanana-ken.png"
-                alt="Kanbanana mascot holding a kanban board"
-                className="relative mx-auto h-auto w-full max-w-[320px] object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-medium text-foreground">Boards</h2>
-          <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+          <Button variant="secondary" onClick={() => setEditor("new")}>
+            <Plus />
             New board
-          </button>
+          </Button>
         </div>
-
-        <Link
-          to="/boards/$boardId"
-          params={{ boardId: "demo-board" }}
-          className="block rounded-lg border border-border bg-background p-5 transition hover:border-primary"
-        >
-          <div className="flex items-center justify-between">
-            <div className="grid gap-1">
-              <h3 className="text-lg font-medium text-foreground">Demo Board</h3>
-              <p className="text-sm text-muted-foreground">
-                Seed-friendly placeholder board for initial scaffolding.
-              </p>
-            </div>
-            <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
-              3 columns
-            </span>
+        {query.isPending ? (
+          <LoadingState />
+        ) : query.isError ? (
+          <ErrorState error={query.error} retry={() => void query.refetch()} />
+        ) : query.data.length === 0 ? (
+          <div className="grid justify-items-center gap-4 rounded-xl border border-dashed border-border p-12 text-center">
+            <LayoutDashboard className="size-9 text-muted-foreground" />
+            <h3 className="text-lg font-medium">A fresh start</h3>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Create your first board, add a few columns, and make room for what
+              matters.
+            </p>
+            <Button onClick={() => setEditor("new")}>
+              <Plus />
+              Create your first board
+            </Button>
           </div>
-        </Link>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {query.data.map((board) => (
+              <article
+                key={board._id}
+                className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-shadow hover:shadow-md"
+              >
+                <Link
+                  to="/boards/$boardId"
+                  params={{ boardId: board._id }}
+                  className="flex flex-1 flex-col gap-4 p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="rounded-lg bg-secondary p-2.5 text-secondary-foreground">
+                      <LayoutDashboard className="size-5" />
+                    </span>
+                    <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                  </div>
+                  <div>
+                    <h3 className="break-words text-lg font-semibold">
+                      {board.name}
+                    </h3>
+                    <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">
+                      {board.description ||
+                        "A little space for your next big thing."}
+                    </p>
+                  </div>
+                </Link>
+                <div className="flex items-center justify-between border-t border-border px-6 py-3">
+                  <span className="text-xs text-muted-foreground">
+                    {board.columnOrder.length}{" "}
+                    {board.columnOrder.length === 1 ? "column" : "columns"}
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Edit ${board.name}`}
+                      onClick={() => setEditor(board)}
+                    >
+                      <Pencil />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete ${board.name}`}
+                      onClick={() => setDeleting(board)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
+      {editor && (
+        <EntityDialog
+          key={typeof editor === "string" ? editor : editor._id}
+          title={editor === "new" ? "Create a board" : "Edit board"}
+          description="A home for your tasks, ideas, and next steps."
+          name={editor === "new" ? "" : editor.name}
+          text={editor === "new" ? "" : editor.description}
+          submitLabel={editor === "new" ? "Create board" : "Save changes"}
+          onClose={() => setEditor(null)}
+          onSave={async (name, description) => {
+            const board = await api<BoardSummary>(
+              editor === "new" ? "/boards" : `/boards/${editor._id}`,
+              editor === "new" ? "POST" : "PATCH",
+              { name, description },
+            );
+            await refresh();
+            if (editor === "new")
+              await navigate({
+                to: "/boards/$boardId",
+                params: { boardId: board._id },
+              });
+            else
+              await client.invalidateQueries({
+                queryKey: ["board", board._id],
+              });
+          }}
+        />
+      )}
+      {deleting && (
+        <DeleteDialog
+          name={`"${deleting.name}"`}
+          detail="This board and all its columns and cards will be removed from your workspace. There is no undo in this version."
+          onClose={() => setDeleting(null)}
+          onConfirm={async () => {
+            await api(`/boards/${deleting._id}`, "DELETE");
+            client.removeQueries({ queryKey: ["board", deleting._id] });
+            await refresh();
+          }}
+        />
+      )}
     </main>
   );
 }

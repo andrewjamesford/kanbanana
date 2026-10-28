@@ -9,23 +9,22 @@
 - [completed] Commit and push the initial implementation scaffold
 - [completed] Implement backend data models for boards, columns, and cards with soft-delete support
 - [completed] Implement Express API endpoints for board CRUD, hydrated board detail, column CRUD/reorder, and card CRUD/reorder/move
-- [pending] Add API validation, error handling, and consistent JSON response shapes
-- [pending] Add seed data and a repeatable local seed command
-- [pending] Replace static frontend board list and board detail data with TanStack Query-backed API integration
-- [pending] Build board, column, and card create/edit/delete flows using `shadcn/ui` components
-- [pending] Implement loading, empty, and error states for key frontend routes
-- [pending] Add `dnd-kit` drag-and-drop for columns and cards, including persistence through reorder/move endpoints
-- [pending] Align routing with the PRD by serving the board list at `/boards` and redirecting `/`
-- [pending] Add test coverage for API mutations and reorder/move behavior
+- [completed] Add API validation, error handling, and consistent JSON response shapes
+- [completed] Add seed data and a repeatable local seed command
+- [completed] Replace static frontend board list and board detail data with TanStack Query-backed API integration
+- [completed] Build board, column, and card create/edit/delete flows using `shadcn/ui` components
+- [completed] Implement loading, empty, and error states for key frontend routes
+- [completed] Add `dnd-kit` drag-and-drop for columns and cards, including persistence through reorder/move endpoints
+- [completed] Align routing with the PRD by serving the board list at `/boards` and redirecting `/`
+- [completed] Add test coverage for API mutations and reorder/move behavior
+
+- [completed] Add persisted light and dark theme switching with the PRD tokens
+- [completed] Configure MongoDB as a replica set and verify the full Docker stack
+- [completed] Add browser regression tests for CRUD, drag, non-drag movement, reload persistence, errors, and responsive layout
+- [completed] Correct frontend TypeScript emission so generated JavaScript cannot shadow source edits
+- [completed] Apply compatible dependency patches and verify the dependency audit
+- [completed] Document setup, environment variables, seed behavior, API contracts, and verification
 
 # Review
 
-- Created `Docs/PRD.md` as the initial product planning document for the Kanban MVP.
-- Captured scope, architecture, data model, API direction, milestones, risks, and open questions for collaboration.
-- Finalized the remaining product decisions and replaced open questions with resolved requirements.
-- Added the initial monorepo scaffold for web, api, shared packages, and Docker-based local development.
-- Reviewed the scaffold against the PRD and converted the missing MVP work into an ordered implementation backlog.
-- Completed backend model scaffolding for boards, columns, and cards with shared soft-delete fields and schema-level tests.
-- Verified the first task with `npm run test -w @kanbanana/api` and `npm run lint -w @kanbanana/api`.
-- Implemented the MVP API surface for board, column, and card CRUD plus reorder and move flows.
-- Verified the API endpoint task with `npm run test -w @kanbanana/api` and `npm run lint -w @kanbanana/api`.
+The PRD's MVP is implemented. The frontend uses live API data, shadcn-style Radix components, TanStack Router and Query, and dnd-kit. Ordering persists in MongoDB; card moves run inside a transaction. Repeatable seed data and Docker health checks support local development. See `Docs/VERIFICATION.md` for the checks and results.

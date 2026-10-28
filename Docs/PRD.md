@@ -2,8 +2,8 @@
 
 ## Document Status
 
-- Status: Draft v0.1
-- Last Updated: 2026-03-25
+- Status: MVP implemented
+- Last Updated: 2026-10-29
 - Purpose: Shared planning document for a simple Kanban application MVP
 
 ## Collaboration Notes
@@ -497,9 +497,6 @@ Use a monorepo structure from the start, with `apps/web` and `apps/api` as the p
 - Confirmed: include seed data for local development
 - Confirmed: authentication remains explicitly out of scope for MVP
 
-## 21. Recommended Next Steps
+## 21. Implementation Status
 
-1. Turn this PRD into an implementation plan.
-2. Scaffold the monorepo.
-3. Add dependency installation and baseline app configuration.
-4. Begin implementation of the board list and board detail flows.
+The MVP scope is implemented. See `README.md` for setup and `Docs/VERIFICATION.md` for the verification record. Post-MVP features remain out of scope as listed above.

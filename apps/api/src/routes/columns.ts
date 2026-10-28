@@ -1,3 +1,4 @@
+import { validateBody } from "../lib/validation.js";
 import { Router } from "express";
 
 import { BoardModel, CardModel, ColumnModel } from "../models/index.js";
@@ -9,8 +10,12 @@ export const columnsRouter = Router();
 
 columnsRouter.patch(
   "/:columnId",
+  validateBody({ name: "text" }),
   asyncHandler(async (request, response) => {
-    const columnId = parseObjectId(readParam(request.params.columnId, "columnId"), "columnId");
+    const columnId = parseObjectId(
+      readParam(request.params.columnId, "columnId"),
+      "columnId",
+    );
     const { name } = request.body as { name?: string };
 
     if (name === undefined || !name.trim()) {
@@ -44,7 +49,10 @@ columnsRouter.patch(
 columnsRouter.delete(
   "/:columnId",
   asyncHandler(async (request, response) => {
-    const columnId = parseObjectId(readParam(request.params.columnId, "columnId"), "columnId");
+    const columnId = parseObjectId(
+      readParam(request.params.columnId, "columnId"),
+      "columnId",
+    );
     const deletedAt = new Date();
 
     const column = await ColumnModel.findOneAndUpdate(
@@ -80,8 +88,12 @@ columnsRouter.delete(
 
 columnsRouter.post(
   "/:columnId/cards",
+  validateBody({ title: "text", description: "description" }),
   asyncHandler(async (request, response) => {
-    const columnId = parseObjectId(readParam(request.params.columnId, "columnId"), "columnId");
+    const columnId = parseObjectId(
+      readParam(request.params.columnId, "columnId"),
+      "columnId",
+    );
     const { title, description } = request.body as {
       title?: string;
       description?: string | null;
@@ -91,7 +103,10 @@ columnsRouter.post(
       throw badRequest("Card title is required");
     }
 
-    const column = await ColumnModel.findOne({ _id: columnId, deletedAt: null });
+    const column = await ColumnModel.findOne({
+      _id: columnId,
+      deletedAt: null,
+    });
 
     if (!column) {
       throw notFound("Column not found");
@@ -122,15 +137,22 @@ columnsRouter.post(
 
 columnsRouter.post(
   "/:columnId/cards/reorder",
+  validateBody({ cardOrder: "ids" }),
   asyncHandler(async (request, response) => {
-    const columnId = parseObjectId(readParam(request.params.columnId, "columnId"), "columnId");
+    const columnId = parseObjectId(
+      readParam(request.params.columnId, "columnId"),
+      "columnId",
+    );
     const { cardOrder } = request.body as { cardOrder?: string[] };
 
     if (!Array.isArray(cardOrder)) {
       throw badRequest("cardOrder must be an array");
     }
 
-    const column = await ColumnModel.findOne({ _id: columnId, deletedAt: null });
+    const column = await ColumnModel.findOne({
+      _id: columnId,
+      deletedAt: null,
+    });
 
     if (!column) {
       throw notFound("Column not found");
@@ -153,7 +175,9 @@ columnsRouter.post(
       throw badRequest("cardOrder must match the column's active cards");
     }
 
-    column.cardOrder = cardOrder.map((value) => parseObjectId(value, "cardOrder entry"));
+    column.cardOrder = cardOrder.map((value) =>
+      parseObjectId(value, "cardOrder entry"),
+    );
     await column.save();
 
     response.json({

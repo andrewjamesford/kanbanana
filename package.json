@@ -10,7 +10,15 @@
     "build": "npm run build --workspaces",
     "dev:api": "npm run dev -w @kanbanana/api",
     "dev:web": "npm run dev -w @kanbanana/web",
-    "lint": "npm run lint --workspaces"
+    "lint": "npm run lint --workspaces",
+    "seed": "npm run seed -w @kanbanana/api",
+    "test": "npm run test -w @kanbanana/api",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  },
+  "overrides": {
+    "qs": "^6.17.0"
   }
 }
-

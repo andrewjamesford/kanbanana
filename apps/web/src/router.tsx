@@ -1,5 +1,6 @@
 import {
   Outlet,
+  redirect,
   createRootRoute,
   createRoute,
   createRouter,
@@ -10,6 +11,14 @@ import { BoardsPage } from "./routes/boards-page";
 import { AppShell } from "./ui/app-shell";
 
 const rootRoute = createRootRoute({
+  notFoundComponent: () => (
+    <main className="p-10 text-center">
+      <h1 className="text-2xl font-semibold">Page not found</h1>
+      <a className="mt-4 inline-block underline" href="/boards">
+        Back to boards
+      </a>
+    </main>
+  ),
   component: () => (
     <AppShell>
       <Outlet />
@@ -19,7 +28,7 @@ const rootRoute = createRootRoute({
 
 const boardsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/",
+  path: "/boards",
   component: BoardsPage,
 });
 
@@ -29,7 +38,14 @@ const boardRoute = createRoute({
   component: BoardPage,
 });
 
-const routeTree = rootRoute.addChildren([boardsRoute, boardRoute]);
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  beforeLoad: () => {
+    throw redirect({ to: "/boards" });
+  },
+});
+const routeTree = rootRoute.addChildren([indexRoute, boardsRoute, boardRoute]);
 
 export const router = createRouter({ routeTree });
 
@@ -38,4 +54,3 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
-

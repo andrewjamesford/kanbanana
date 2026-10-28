@@ -3,7 +3,10 @@ import { notFound } from "./http-error.js";
 import { serializeBoardDetail } from "./serializers.js";
 
 export async function getBoardDetail(boardId: string) {
-  const board = await BoardModel.findOne({ _id: boardId, deletedAt: null });
+  const board = await BoardModel.findOne({
+    _id: boardId,
+    deletedAt: null,
+  }).lean();
 
   if (!board) {
     throw notFound("Board not found");
@@ -12,9 +15,11 @@ export async function getBoardDetail(boardId: string) {
   const columns = await ColumnModel.find({
     boardId: board._id,
     deletedAt: null,
-  });
+  }).lean();
 
-  const columnsById = new Map(columns.map((column) => [column._id.toString(), column]));
+  const columnsById = new Map(
+    columns.map((column) => [column._id.toString(), column]),
+  );
   const orderedColumns = board.columnOrder
     .map((columnId) => columnsById.get(columnId.toString()))
     .filter((column): column is NonNullable<typeof column> => Boolean(column));
@@ -22,7 +27,7 @@ export async function getBoardDetail(boardId: string) {
   const cards = await CardModel.find({
     boardId: board._id,
     deletedAt: null,
-  });
+  }).lean();
 
   const cardsById = new Map(cards.map((card) => [card._id.toString(), card]));
   const orderedCards = orderedColumns.flatMap((column) =>
@@ -33,4 +38,3 @@ export async function getBoardDetail(boardId: string) {
 
   return serializeBoardDetail(board, orderedColumns, orderedCards);
 }
-

@@ -5,6 +5,7 @@ import request from "supertest";
 import mongoose from "mongoose";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 
+import { seedData } from "../seed-data.js";
 import { createApp } from "../app.js";
 import { BoardModel, CardModel, ColumnModel } from "../models/index.js";
 
@@ -29,7 +30,7 @@ afterEach(async () => {
 
 after(async () => {
   await mongoose.disconnect();
-  await mongoServer.stop();
+  await mongoServer?.stop();
 });
 
 test("board CRUD endpoints create, update, list, hydrate, and soft delete boards", async () => {
@@ -46,10 +47,12 @@ test("board CRUD endpoints create, update, list, hydrate, and soft delete boards
 
   const boardId = createResponse.body.data._id as string;
 
-  const patchResponse = await request(app).patch(`/api/boards/${boardId}`).send({
-    name: "Updated Product Launch",
-    description: "Revised board",
-  });
+  const patchResponse = await request(app)
+    .patch(`/api/boards/${boardId}`)
+    .send({
+      name: "Updated Product Launch",
+      description: "Revised board",
+    });
 
   assert.equal(patchResponse.status, 200);
   assert.equal(patchResponse.body.data.name, "Updated Product Launch");
@@ -104,7 +107,10 @@ test("column and card endpoints support hydrated board detail, reorder, move, an
     .send({ columnOrder: [doingId, todoId] });
 
   assert.equal(reorderColumnsResponse.status, 200);
-  assert.deepEqual(reorderColumnsResponse.body.data.columnOrder, [doingId, todoId]);
+  assert.deepEqual(reorderColumnsResponse.body.data.columnOrder, [
+    doingId,
+    todoId,
+  ]);
 
   const cardOneResponse = await request(app)
     .post(`/api/columns/${todoId}/cards`)
@@ -121,7 +127,10 @@ test("column and card endpoints support hydrated board detail, reorder, move, an
     .send({ cardOrder: [cardTwoId, cardOneId] });
 
   assert.equal(reorderCardsResponse.status, 200);
-  assert.deepEqual(reorderCardsResponse.body.data.cardOrder, [cardTwoId, cardOneId]);
+  assert.deepEqual(reorderCardsResponse.body.data.cardOrder, [
+    cardTwoId,
+    cardOneId,
+  ]);
 
   const moveResponse = await request(app)
     .post(`/api/cards/${cardTwoId}/move`)
@@ -146,7 +155,9 @@ test("column and card endpoints support hydrated board detail, reorder, move, an
 
   assert.equal(detailResponse.status, 200);
   assert.deepEqual(
-    detailResponse.body.data.columns.map((column: { _id: string }) => column._id),
+    detailResponse.body.data.columns.map(
+      (column: { _id: string }) => column._id,
+    ),
     [doingId, todoId],
   );
   assert.deepEqual(
@@ -154,7 +165,9 @@ test("column and card endpoints support hydrated board detail, reorder, move, an
     [cardTwoId, cardOneId],
   );
 
-  const deleteCardResponse = await request(app).delete(`/api/cards/${cardOneId}`);
+  const deleteCardResponse = await request(app).delete(
+    `/api/cards/${cardOneId}`,
+  );
   assert.equal(deleteCardResponse.status, 200);
 
   const afterCardDelete = await request(app).get(`/api/boards/${boardId}`);
@@ -163,12 +176,16 @@ test("column and card endpoints support hydrated board detail, reorder, move, an
     [cardTwoId],
   );
 
-  const deleteColumnResponse = await request(app).delete(`/api/columns/${doingId}`);
+  const deleteColumnResponse = await request(app).delete(
+    `/api/columns/${doingId}`,
+  );
   assert.equal(deleteColumnResponse.status, 200);
 
   const afterColumnDelete = await request(app).get(`/api/boards/${boardId}`);
   assert.deepEqual(
-    afterColumnDelete.body.data.columns.map((column: { _id: string }) => column._id),
+    afterColumnDelete.body.data.columns.map(
+      (column: { _id: string }) => column._id,
+    ),
     [todoId],
   );
   assert.deepEqual(afterColumnDelete.body.data.cards, []);
@@ -221,4 +238,153 @@ test("invalid JSON bodies return a 400 response instead of a 500", async () => {
 
   assert.equal(response.status, 400);
   assert.equal(response.body.success, false);
+});
+
+test("malformed fields and IDs return consistent client errors without creating records", async () => {
+  const app = createApp();
+  for (const body of [
+    { name: 42 },
+    { name: [] },
+    { name: {} },
+    { name: null },
+    { name: "   " },
+    { name: "a".repeat(201) },
+    { name: "Board", description: 1 },
+    { name: "Board", deletedAt: null },
+    {},
+  ]) {
+    const response = await request(app).post("/api/boards").send(body);
+    assert.equal(response.status, 400, JSON.stringify(body));
+    assert.equal(response.body.success, false);
+    assert.equal(typeof response.body.error, "string");
+  }
+  assert.equal(await BoardModel.countDocuments(), 0);
+  assert.equal((await request(app).get("/api/boards/not-an-id")).status, 400);
+  assert.equal(
+    (await request(app).get("/api/no-such-route")).body.error,
+    "Endpoint not found",
+  );
+});
+
+test("duplicate, foreign, and incomplete orders never change saved ordering", async () => {
+  const app = createApp();
+  const board = (await request(app).post("/api/boards").send({ name: "One" }))
+    .body.data;
+  const second = (await request(app).post("/api/boards").send({ name: "Two" }))
+    .body.data;
+  const a = (
+    await request(app)
+      .post(`/api/boards/${board._id}/columns`)
+      .send({ name: "A" })
+  ).body.data;
+  const b = (
+    await request(app)
+      .post(`/api/boards/${board._id}/columns`)
+      .send({ name: "B" })
+  ).body.data;
+  const foreign = (
+    await request(app)
+      .post(`/api/boards/${second._id}/columns`)
+      .send({ name: "Other" })
+  ).body.data;
+  const card = (
+    await request(app)
+      .post(`/api/columns/${a._id}/cards`)
+      .send({ title: "Stay here" })
+  ).body.data;
+  for (const columnOrder of [
+    [a._id, a._id],
+    [a._id, foreign._id],
+    [a._id],
+    [42],
+    null,
+  ]) {
+    assert.equal(
+      (
+        await request(app)
+          .post(`/api/boards/${board._id}/columns/reorder`)
+          .send({ columnOrder })
+      ).status,
+      400,
+    );
+  }
+  const before = (await request(app).get(`/api/boards/${board._id}`)).body.data;
+  for (const payload of [
+    {
+      sourceColumnId: a._id,
+      destinationColumnId: b._id,
+      sourceCardOrder: [],
+      destinationCardOrder: [],
+    },
+    {
+      sourceColumnId: a._id,
+      destinationColumnId: foreign._id,
+      sourceCardOrder: [],
+      destinationCardOrder: [card._id],
+    },
+    {
+      sourceColumnId: b._id,
+      destinationColumnId: a._id,
+      sourceCardOrder: [],
+      destinationCardOrder: [card._id],
+    },
+    {
+      sourceColumnId: a._id,
+      destinationColumnId: a._id,
+      sourceCardOrder: [],
+      destinationCardOrder: [card._id],
+    },
+  ]) {
+    assert.equal(
+      (await request(app).post(`/api/cards/${card._id}/move`).send(payload))
+        .status,
+      400,
+    );
+    assert.deepEqual(
+      (await request(app).get(`/api/boards/${board._id}`)).body.data,
+      before,
+    );
+  }
+});
+
+test("seed is repeatable, preserves edits, and board deletion cascades soft deletes", async () => {
+  const app = createApp();
+  assert.equal(await seedData(), true);
+  const board = await BoardModel.findOne();
+  assert.ok(board);
+  const column = await ColumnModel.findOne({ boardId: board._id });
+  const card = await CardModel.findOne({ boardId: board._id });
+  assert.ok(column && card);
+  assert.equal(
+    (await request(app).get(`/api/cards/${card._id}`)).body.data.title,
+    card.title,
+  );
+  await request(app)
+    .patch(`/api/boards/${board._id}`)
+    .send({ name: "My edited sample" });
+  assert.equal(await seedData(), false);
+  assert.equal(await BoardModel.countDocuments(), 1);
+  assert.equal(
+    (await BoardModel.findById(board._id))?.name,
+    "My edited sample",
+  );
+  await request(app).delete(`/api/boards/${board._id}`);
+  assert.equal(
+    await CardModel.countDocuments({ boardId: board._id, deletedAt: null }),
+    0,
+  );
+  assert.equal(
+    await ColumnModel.countDocuments({ boardId: board._id, deletedAt: null }),
+    0,
+  );
+  assert.equal((await request(app).get(`/api/cards/${card._id}`)).status, 404);
+  assert.equal(
+    (
+      await request(app)
+        .post(`/api/columns/${column._id}/cards`)
+        .send({ title: "Hidden" })
+    ).status,
+    404,
+  );
+  assert.equal(await seedData(), false);
 });

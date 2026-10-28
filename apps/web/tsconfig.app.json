@@ -5,9 +5,8 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": [
-      "vite/client"
-    ]
+    "types": ["vite/client"],
+    "noEmit": true
   },
   "include": [
     "src/**/*.ts",
@@ -16,4 +15,3 @@
     "tailwind.config.ts"
   ]
 }
-

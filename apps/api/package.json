@@ -8,7 +8,8 @@
     "dev": "tsx watch src/index.ts",
     "lint": "tsc --noEmit -p tsconfig.json",
     "test": "node --import tsx --test src/**/*.test.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "@kanbanana/shared": "0.1.0",

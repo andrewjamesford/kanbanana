@@ -1,16 +1,39 @@
+import { moveCard } from "../services/move-card.js";
+import { serializeCardSummary } from "../lib/serializers.js";
+import { validateBody } from "../lib/validation.js";
 import { Router } from "express";
 
 import { CardModel, ColumnModel } from "../models/index.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { badRequest, notFound } from "../lib/http-error.js";
-import { objectIdEquals, parseObjectId, readParam } from "../lib/object-id.js";
+import { parseObjectId, readParam } from "../lib/object-id.js";
 
 export const cardsRouter = Router();
 
-cardsRouter.patch(
+cardsRouter.get(
   "/:cardId",
   asyncHandler(async (request, response) => {
-    const cardId = parseObjectId(readParam(request.params.cardId, "cardId"), "cardId");
+    const cardId = parseObjectId(
+      readParam(request.params.cardId, "cardId"),
+      "cardId",
+    );
+    const card = await CardModel.findOne({
+      _id: cardId,
+      deletedAt: null,
+    }).lean();
+    if (!card) throw notFound("Card not found");
+    response.json({ success: true, data: serializeCardSummary(card) });
+  }),
+);
+
+cardsRouter.patch(
+  "/:cardId",
+  validateBody({ title: "text", description: "description" }),
+  asyncHandler(async (request, response) => {
+    const cardId = parseObjectId(
+      readParam(request.params.cardId, "cardId"),
+      "cardId",
+    );
     const { title, description } = request.body as {
       title?: string;
       description?: string | null;
@@ -52,7 +75,10 @@ cardsRouter.patch(
 cardsRouter.delete(
   "/:cardId",
   asyncHandler(async (request, response) => {
-    const cardId = parseObjectId(readParam(request.params.cardId, "cardId"), "cardId");
+    const cardId = parseObjectId(
+      readParam(request.params.cardId, "cardId"),
+      "cardId",
+    );
     const deletedAt = new Date();
 
     const card = await CardModel.findOneAndUpdate(
@@ -83,8 +109,17 @@ cardsRouter.delete(
 
 cardsRouter.post(
   "/:cardId/move",
+  validateBody({
+    sourceColumnId: "id",
+    destinationColumnId: "id",
+    sourceCardOrder: "ids",
+    destinationCardOrder: "ids",
+  }),
   asyncHandler(async (request, response) => {
-    const cardId = parseObjectId(readParam(request.params.cardId, "cardId"), "cardId");
+    const cardId = parseObjectId(
+      readParam(request.params.cardId, "cardId"),
+      "cardId",
+    );
     const {
       sourceColumnId,
       destinationColumnId,
@@ -101,100 +136,21 @@ cardsRouter.post(
       throw badRequest("sourceColumnId and destinationColumnId are required");
     }
 
-    if (!Array.isArray(sourceCardOrder) || !Array.isArray(destinationCardOrder)) {
-      throw badRequest("sourceCardOrder and destinationCardOrder must be arrays");
-    }
-
-    const sourceId = parseObjectId(sourceColumnId, "sourceColumnId");
-    const destinationId = parseObjectId(destinationColumnId, "destinationColumnId");
-
-    if (objectIdEquals(sourceId, destinationId)) {
-      throw badRequest("Card moves across columns require different source and destination columns");
-    }
-
-    const card = await CardModel.findOne({ _id: cardId, deletedAt: null });
-
-    if (!card) {
-      throw notFound("Card not found");
-    }
-
-    if (!objectIdEquals(card.columnId, sourceId)) {
-      throw badRequest("Card does not belong to the source column");
-    }
-
-    const [sourceColumn, destinationColumn] = await Promise.all([
-      ColumnModel.findOne({ _id: sourceId, deletedAt: null }),
-      ColumnModel.findOne({ _id: destinationId, deletedAt: null }),
-    ]);
-
-    if (!sourceColumn || !destinationColumn) {
-      throw notFound("One or more columns were not found");
-    }
-
-    if (!objectIdEquals(sourceColumn.boardId, destinationColumn.boardId)) {
-      throw badRequest("Source and destination columns must belong to the same board");
-    }
-
-    const sourceCards = await CardModel.find({
-      _id: { $in: sourceColumn.cardOrder },
-      columnId: sourceColumn._id,
-      boardId: sourceColumn.boardId,
-      deletedAt: null,
-    });
-    const destinationCards = await CardModel.find({
-      _id: { $in: destinationColumn.cardOrder },
-      columnId: destinationColumn._id,
-      boardId: destinationColumn.boardId,
-      deletedAt: null,
-    });
-
-    const expectedSourceIds = sourceCards
-      .filter((sourceCard) => !objectIdEquals(sourceCard._id, card._id))
-      .map((sourceCard) => sourceCard._id.toString())
-      .sort();
-    const expectedDestinationIds = [...destinationCards.map((destinationCard) => destinationCard._id.toString()), card._id.toString()].sort();
-    const providedSourceIds = sourceCardOrder
-      .map((value) => parseObjectId(value, "sourceCardOrder entry").toString())
-      .sort();
-    const providedDestinationIds = destinationCardOrder
-      .map((value) => parseObjectId(value, "destinationCardOrder entry").toString())
-      .sort();
-
     if (
-      expectedSourceIds.length !== providedSourceIds.length ||
-      expectedSourceIds.some((value, index) => value !== providedSourceIds[index])
+      !Array.isArray(sourceCardOrder) ||
+      !Array.isArray(destinationCardOrder)
     ) {
-      throw badRequest("sourceCardOrder must match the remaining source cards");
+      throw badRequest(
+        "sourceCardOrder and destinationCardOrder must be arrays",
+      );
     }
 
-    if (
-      expectedDestinationIds.length !== providedDestinationIds.length ||
-      expectedDestinationIds.some((value, index) => value !== providedDestinationIds[index])
-    ) {
-      throw badRequest("destinationCardOrder must match the destination cards after the move");
-    }
-
-    const session = await CardModel.startSession();
-
-    try {
-      await session.withTransaction(async () => {
-        sourceColumn.cardOrder = sourceCardOrder.map((value) =>
-          parseObjectId(value, "sourceCardOrder entry"),
-        );
-        destinationColumn.cardOrder = destinationCardOrder.map((value) =>
-          parseObjectId(value, "destinationCardOrder entry"),
-        );
-        card.columnId = destinationColumn._id;
-
-        await Promise.all([
-          sourceColumn.save({ session }),
-          destinationColumn.save({ session }),
-          card.save({ session }),
-        ]);
-      });
-    } finally {
-      await session.endSession();
-    }
+    const { card, sourceColumn, destinationColumn } = await moveCard(cardId, {
+      sourceColumnId,
+      destinationColumnId,
+      sourceCardOrder,
+      destinationCardOrder,
+    });
 
     response.json({
       success: true,
@@ -211,7 +167,9 @@ cardsRouter.post(
           },
           {
             _id: destinationColumn._id.toString(),
-            cardOrder: destinationColumn.cardOrder.map((value) => value.toString()),
+            cardOrder: destinationColumn.cardOrder.map((value) =>
+              value.toString(),
+            ),
           },
         ],
       },

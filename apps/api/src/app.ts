@@ -16,7 +16,11 @@ function getErrorStatus(error: unknown) {
     const statusCode = "statusCode" in error ? error.statusCode : undefined;
     const status = "status" in error ? error.status : undefined;
     const resolvedStatus =
-      typeof statusCode === "number" ? statusCode : typeof status === "number" ? status : undefined;
+      typeof statusCode === "number"
+        ? statusCode
+        : typeof status === "number"
+          ? status
+          : undefined;
 
     if (resolvedStatus && resolvedStatus >= 400 && resolvedStatus < 600) {
       return resolvedStatus;
@@ -49,19 +53,31 @@ export function createApp() {
   app.use("/api/columns", columnsRouter);
   app.use("/api/cards", cardsRouter);
 
-  app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
-    const statusCode = getErrorStatus(error);
-    const errorMessage = statusCode === 500 ? "Internal server error" : getErrorMessage(error);
-
-    if (statusCode === 500) {
-      console.error(error);
-    }
-
-    return response.status(statusCode).json({
-      success: false,
-      error: errorMessage,
-    });
+  app.use((_request, response) => {
+    response.status(404).json({ success: false, error: "Endpoint not found" });
   });
+
+  app.use(
+    (
+      error: unknown,
+      _request: express.Request,
+      response: express.Response,
+      _next: express.NextFunction,
+    ) => {
+      const statusCode = getErrorStatus(error);
+      const errorMessage =
+        statusCode === 500 ? "Internal server error" : getErrorMessage(error);
+
+      if (statusCode === 500) {
+        console.error(error);
+      }
+
+      return response.status(statusCode).json({
+        success: false,
+        error: errorMessage,
+      });
+    },
+  );
 
   return app;
 }

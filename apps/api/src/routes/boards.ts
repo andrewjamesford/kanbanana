@@ -1,3 +1,4 @@
+import { validateBody } from "../lib/validation.js";
 import { Router } from "express";
 
 import { BoardModel, CardModel, ColumnModel } from "../models/index.js";
@@ -12,7 +13,9 @@ export const boardsRouter = Router();
 boardsRouter.get(
   "/",
   asyncHandler(async (_request, response) => {
-    const boards = await BoardModel.find({ deletedAt: null }).sort({ createdAt: 1 });
+    const boards = await BoardModel.find({ deletedAt: null })
+      .sort({ createdAt: 1 })
+      .lean();
 
     response.json({
       success: true,
@@ -23,6 +26,7 @@ boardsRouter.get(
 
 boardsRouter.post(
   "/",
+  validateBody({ name: "text", description: "description" }),
   asyncHandler(async (request, response) => {
     const { name, description } = request.body as {
       name?: string;
@@ -48,7 +52,10 @@ boardsRouter.post(
 boardsRouter.get(
   "/:boardId",
   asyncHandler(async (request, response) => {
-    const boardId = parseObjectId(readParam(request.params.boardId, "boardId"), "boardId");
+    const boardId = parseObjectId(
+      readParam(request.params.boardId, "boardId"),
+      "boardId",
+    );
     const boardDetail = await getBoardDetail(boardId.toString());
 
     response.json({ success: true, data: boardDetail });
@@ -57,8 +64,12 @@ boardsRouter.get(
 
 boardsRouter.patch(
   "/:boardId",
+  validateBody({ name: "text", description: "description" }),
   asyncHandler(async (request, response) => {
-    const boardId = parseObjectId(readParam(request.params.boardId, "boardId"), "boardId");
+    const boardId = parseObjectId(
+      readParam(request.params.boardId, "boardId"),
+      "boardId",
+    );
     const { name, description } = request.body as {
       name?: string;
       description?: string | null;
@@ -94,7 +105,10 @@ boardsRouter.patch(
 boardsRouter.delete(
   "/:boardId",
   asyncHandler(async (request, response) => {
-    const boardId = parseObjectId(readParam(request.params.boardId, "boardId"), "boardId");
+    const boardId = parseObjectId(
+      readParam(request.params.boardId, "boardId"),
+      "boardId",
+    );
     const deletedAt = new Date();
 
     const board = await BoardModel.findOneAndUpdate(
@@ -110,14 +124,21 @@ boardsRouter.delete(
     await ColumnModel.updateMany({ boardId, deletedAt: null }, { deletedAt });
     await CardModel.updateMany({ boardId, deletedAt: null }, { deletedAt });
 
-    response.json({ success: true, data: { _id: board._id.toString(), deletedAt } });
+    response.json({
+      success: true,
+      data: { _id: board._id.toString(), deletedAt },
+    });
   }),
 );
 
 boardsRouter.post(
   "/:boardId/columns",
+  validateBody({ name: "text" }),
   asyncHandler(async (request, response) => {
-    const boardId = parseObjectId(readParam(request.params.boardId, "boardId"), "boardId");
+    const boardId = parseObjectId(
+      readParam(request.params.boardId, "boardId"),
+      "boardId",
+    );
     const { name } = request.body as { name?: string };
 
     if (!name?.trim()) {
@@ -152,8 +173,12 @@ boardsRouter.post(
 
 boardsRouter.post(
   "/:boardId/columns/reorder",
+  validateBody({ columnOrder: "ids" }),
   asyncHandler(async (request, response) => {
-    const boardId = parseObjectId(readParam(request.params.boardId, "boardId"), "boardId");
+    const boardId = parseObjectId(
+      readParam(request.params.boardId, "boardId"),
+      "boardId",
+    );
     const { columnOrder } = request.body as { columnOrder?: string[] };
 
     if (!Array.isArray(columnOrder)) {
@@ -167,19 +192,25 @@ boardsRouter.post(
     }
 
     const columns = await ColumnModel.find({ boardId, deletedAt: null });
-    const existingColumnIds = columns.map((column) => column._id.toString()).sort();
+    const existingColumnIds = columns
+      .map((column) => column._id.toString())
+      .sort();
     const providedColumnIds = columnOrder
       .map((value) => parseObjectId(value, "columnOrder entry").toString())
       .sort();
 
     if (
       existingColumnIds.length !== providedColumnIds.length ||
-      existingColumnIds.some((value, index) => value !== providedColumnIds[index])
+      existingColumnIds.some(
+        (value, index) => value !== providedColumnIds[index],
+      )
     ) {
       throw badRequest("columnOrder must match the board's active columns");
     }
 
-    board.columnOrder = columnOrder.map((value) => parseObjectId(value, "columnOrder entry"));
+    board.columnOrder = columnOrder.map((value) =>
+      parseObjectId(value, "columnOrder entry"),
+    );
     await board.save();
 
     response.json({

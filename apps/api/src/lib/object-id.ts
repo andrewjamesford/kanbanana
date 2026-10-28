@@ -15,8 +15,8 @@ export function readParam(
   return resolved;
 }
 
-export function parseObjectId(value: string, fieldName: string) {
-  if (!Types.ObjectId.isValid(value)) {
+export function parseObjectId(value: unknown, fieldName: string) {
+  if (typeof value !== "string" || !/^[a-f\d]{24}$/i.test(value)) {
     throw badRequest(`Invalid ${fieldName}`);
   }
 
