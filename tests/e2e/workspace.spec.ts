@@ -63,7 +63,9 @@ test("board, column, and card workflows persist through reloads, drag, keyboard,
     const initial = (
       await (await page.request.get(`/api/boards/${boardId}`)).json()
     ).data;
-    const firstId = initial.cards.find((card: { title: string }) => card.title === "First task")._id;
+    const firstId = initial.cards.find(
+      (card: { title: string }) => card.title === "First task",
+    )._id;
     const secondId = initial.cards.find(
       (card: { title: string }) => card.title === "Second task",
     )._id;
@@ -439,5 +441,115 @@ test("board-list editing and pointer reordering persist; blank workspace has a c
     await expect(page.getByRole("dialog")).toBeVisible();
   } finally {
     await page.request.delete(`/api/boards/${board._id}`);
+  }
+});
+
+async function mockReviewBoard(page: Page, name: string) {
+  const boardId = "111111111111111111111111";
+  const todoId = "222222222222222222222222";
+  const doneId = "333333333333333333333333";
+  const cardId = "444444444444444444444444";
+  const writes: string[] = [];
+  const detail = {
+    board: {
+      _id: boardId,
+      name,
+      description: "",
+      columnOrder: [todoId, doneId],
+      createdAt: "2026-10-29T00:00:00Z",
+      updatedAt: "2026-10-29T00:00:00Z",
+    },
+    columns: [
+      { _id: todoId, boardId, name: "Todo", cardOrder: [cardId] },
+      { _id: doneId, boardId, name: "Done", cardOrder: [] },
+    ],
+    cards: [
+      {
+        _id: cardId,
+        boardId,
+        columnId: todoId,
+        title: "Stay put",
+        description: null,
+      },
+    ],
+  };
+  await page.route("**/api/**", (route) => {
+    if (route.request().method() !== "GET") writes.push(route.request().url());
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: detail }),
+    });
+  });
+  await page.goto(`/boards/${boardId}`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+  return { writes, cardId };
+}
+
+test("pointer release outside the board cancels card and column drags without writing", async ({
+  page,
+}) => {
+  const { writes } = await mockReviewBoard(page, "Drop boundary");
+  const destination = await page
+    .getByRole("region", { name: "Done column", exact: true })
+    .boundingBox();
+  if (!destination) throw new Error("Missing destination column");
+  for (const name of ["Drag card Stay put", "Drag column Todo"]) {
+    const handle = page.getByRole("button", { name, exact: true });
+    const source = await handle.boundingBox();
+    if (!source) throw new Error("Missing drag handle");
+    await page.mouse.move(
+      source.x + source.width / 2,
+      source.y + source.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      source.x + source.width / 2 + 10,
+      source.y + source.height / 2,
+      { steps: 4 },
+    );
+    await expect(handle).toHaveAttribute("aria-pressed", "true");
+    // Pass through a valid target, then release above all columns.
+    await page.mouse.move(
+      destination.x + destination.width / 2,
+      destination.y + destination.height / 2,
+      { steps: 20 },
+    );
+    await page.mouse.move(destination.x + destination.width / 2, 120, {
+      steps: 20,
+    });
+    await expect(page.getByRole("status").last()).toContainText(
+      "no longer over a droppable area",
+    );
+    await page.mouse.up();
+    await expect(handle).not.toHaveAttribute("aria-pressed", "true");
+    await expect(
+      page
+        .getByRole("region", { name: "Todo column", exact: true })
+        .getByRole("heading", { level: 3 }),
+    ).toHaveText("Stay put");
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText([
+      "Todo",
+      "Done",
+    ]);
+    expect(writes).toEqual([]);
+  }
+});
+
+test("maximum-length unbroken board names fit mobile viewports", async ({
+  page,
+}) => {
+  const name = "A".repeat(200);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockReviewBoard(page, name);
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    const heading = await page.getByRole("heading", { level: 1 }).boundingBox();
+    expect(heading).not.toBeNull();
+    expect(heading!.x + heading!.width).toBeLessThanOrEqual(width);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
   }
 });

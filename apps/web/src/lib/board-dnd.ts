@@ -23,11 +23,10 @@ export const boardCollisions: CollisionDetection = (args) => {
       droppableContainers.find((container) => container.id === hit.id)?.data
         .current?.kind === "card",
   );
-  return cardHits.length
-    ? cardHits
-    : hits.length
-      ? hits
-      : closestCenter(filtered);
+  // Pointer releases outside a valid target cancel the drag. Keyboard movement
+  // has no pointer coordinates, so it still needs the nearest measured target.
+  if (args.pointerCoordinates) return cardHits.length ? cardHits : hits;
+  return closestCenter(filtered);
 };
 
 // Nested columns and cards need different keyboard targets. A column must never

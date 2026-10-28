@@ -193,12 +193,12 @@ function BoardWorkspace({ boardId }: { boardId: string }) {
         </Link>
       </Button>
       <header className="mb-8 flex flex-wrap items-start justify-between gap-5">
-        <div className="min-w-0 space-y-2">
-          <div className="flex items-start gap-3">
-            <span className="mt-1 rounded-lg bg-secondary p-2 text-secondary-foreground">
+        <div className="w-full min-w-0 space-y-2 sm:w-auto sm:flex-1">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="mt-1 shrink-0 rounded-lg bg-secondary p-2 text-secondary-foreground">
               <LayoutDashboard className="size-5" />
             </span>
-            <h1 className="max-w-3xl break-words text-3xl font-semibold tracking-tight">
+            <h1 className="min-w-0 max-w-3xl flex-1 break-words text-3xl font-semibold tracking-tight">
               {board.name}
             </h1>
           </div>

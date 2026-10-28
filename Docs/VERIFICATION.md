@@ -23,16 +23,20 @@ Verified locally on 2026-10-29 against the scope in [PRD.md](PRD.md).
 - `npm run lint`: passed all three workspace TypeScript checks.
 - `npm run build`: passed API/shared compilation and the Vite production build.
 - `npm test`: passed all 12 model and API tests using an isolated temporary MongoDB replica set.
-- `npm run test:e2e`: passed all three Playwright browser scenarios against the Docker stack.
+- `npm run test:e2e`: passed all five Playwright browser scenarios against the Docker stack.
 - `docker compose up -d --build --wait`: both images built and all three services started. MongoDB and API health checks passed.
 - `docker compose exec api npm run seed`: sample data created initially; a second invocation reported that no data changed.
 - Dependency audit during the final clean Docker installation: zero vulnerabilities.
 - `git diff --check`: passed.
 - Visual review: board list, dark board view, and mobile card dialog inspected. The mobile page had no horizontal document overflow.
 
-The browser suite verified board, column, and card CRUD, reload persistence, keyboard column and card reordering, pointer column and card reordering, dragging into an empty column, non-drag movement to a chosen position, board-list editing and deletion, optimistic rollback after a rejected reorder, load-error recovery, missing-board handling, dialog focus and Escape behavior, dark-mode persistence, and a 390-pixel mobile viewport.
+The browser suite verified board, column, and card CRUD, reload persistence, keyboard column and card reordering, pointer column and card reordering, dragging into an empty column, non-drag movement to a chosen position, board-list editing and deletion, optimistic rollback after a rejected reorder, load-error recovery, missing-board handling, dialog focus and Escape behavior, dark-mode persistence, a 390-pixel mobile viewport, cancellation of card and column drags released outside valid targets, and 200-character unbroken board names at 390- and 320-pixel widths.
 
 Browser automation used local Chromium through Playwright after the collaborative preview repeatedly timed out and the alternate browser host was unavailable. The tests accept an existing browser executable through `PLAYWRIGHT_CHROMIUM_EXECUTABLE`; standard setup uses `npx playwright install chromium`.
+
+## Review follow-up
+
+The initial independent subagent review identified two issues: pointer drops outside all targets could still move a card, and long unbroken board names could overflow mobile layouts. Pointer drags now require an actual target, while keyboard drags retain nearest-target detection. The board heading now shrinks and wraps within its available width. Browser regressions cover both fixes.
 
 ## Important implementation corrections
 
@@ -44,4 +48,4 @@ Browser automation used local Chromium through Playwright after the collaborativ
 
 ## Boundaries
 
-This verifies the PRD's local MVP. Authentication, sharing, real-time collaboration, restore flows, search, labels, due dates, and production hosting are outside that scope. Deployment to a public host was not performed. Changes remain in the local working tree, with no commit or push made by this implementation run.
+This verifies the PRD's local MVP. Authentication, sharing, real-time collaboration, restore flows, search, labels, due dates, and production hosting are outside that scope. Deployment to a public host was not performed.
