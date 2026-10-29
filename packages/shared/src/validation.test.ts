@@ -10,6 +10,7 @@ import {
   columnReorderSchema,
   cardReorderSchema,
   cardMoveSchema,
+  cardPlacementSchema,
   validationMessage,
 } from "./validation.js";
 
@@ -144,4 +145,34 @@ test("validation messages identify the failing field without dumping input", () 
   assert.equal(result.success, false);
   if (!result.success)
     assert.equal(validationMessage(result.error), "name: Name is required");
+});
+
+test("card updates accept an optional placement, including within one column", () => {
+  const placement = {
+    sourceColumnId: a,
+    destinationColumnId: a,
+    sourceCardOrder: [],
+    destinationCardOrder: [b],
+  };
+  assert.equal(cardPlacementSchema.safeParse(placement).success, true);
+  assert.equal(cardUpdateSchema.safeParse({ placement }).success, true);
+  assert.equal(
+    cardUpdateSchema.safeParse({ title: "Task", placement }).success,
+    true,
+  );
+  assert.equal(
+    cardUpdateSchema.safeParse({ placement: undefined }).success,
+    false,
+  );
+  assert.equal(
+    cardUpdateSchema.safeParse({ placement: { ...placement, extra: 1 } })
+      .success,
+    false,
+  );
+  assert.equal(
+    cardUpdateSchema.safeParse({
+      placement: { ...placement, destinationCardOrder: [b, b] },
+    }).success,
+    false,
+  );
 });

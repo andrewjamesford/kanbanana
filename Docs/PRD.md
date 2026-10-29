@@ -231,6 +231,30 @@ Expected behavior:
 - Updates `cardOrder` for both source and destination columns in a single logical operation
 - Returns the updated card plus ordering metadata for both affected columns
 
+#### Edit and Place a Card in One Request
+
+- `PATCH /api/cards/:cardId`
+
+Request body (at least one field; `placement` is optional):
+
+```json
+{
+  "title": "New title",
+  "description": "New description",
+  "placement": {
+    "sourceColumnId": "column_a",
+    "destinationColumnId": "column_a",
+    "sourceCardOrder": ["card_1", "card_3"],
+    "destinationCardOrder": ["card_2", "card_1", "card_3"]
+  }
+}
+```
+
+Expected behavior:
+
+- Applies the text changes and the placement in one transaction, so a rejected placement never leaves a renamed card behind
+- `placement` uses the same validation as the move contract, except that source and destination may be the same column, which reorders the card within it
+
 #### Recommended Response Shape
 
 For reorder and move endpoints, prefer returning the minimum data needed for TanStack Query cache updates:
