@@ -28,6 +28,7 @@
 - [completed] Release 1.1: replace custom request validation with shared Zod schemas and typed handlers
 - [completed] Release 1.1: validate frontend forms with the shared schemas and add schema/API/browser regressions
 - [completed] Release 1.1: migrate to TypeScript 7 and the latest stable direct npm dependencies
+- [completed] Release 1.2: route all API responses through serializers and share ID and order-matching helpers
 
 # Review
 
