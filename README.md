@@ -4,7 +4,7 @@
 
 A small Kanban app for organizing work into boards, columns, and cards. Built with React, TypeScript, Express, and MongoDB, following [the MVP PRD](Docs/PRD.md).
 
-Release `1.2` tidies the API internals (shared serializers and ID helpers) without changing behavior. Release `1.1` introduced shared Zod 4 schemas for API requests and frontend forms. The stack runs TypeScript 7.0.2, React 19.3.1, Express 5.3.0, Mongoose 9.11.4, Vite 8.3.5, and Tailwind CSS 4.3.3. All direct npm dependencies were updated to their latest stable releases for this version; `package-lock.json` records the tested versions.
+Release `1.2` tidies the API internals (shared serializers and ID helpers), runs multi-document writes in transactions, and saves a card edit and move in a single request. Release `1.1` introduced shared Zod 4 schemas for API requests and frontend forms. The stack runs TypeScript 7.0.2, React 19.3.1, Express 5.3.0, Mongoose 9.11.4, Vite 8.3.5, and Tailwind CSS 4.3.3. All direct npm dependencies were updated to their latest stable releases for this version; `package-lock.json` records the tested versions.
 
 - Create, rename, describe, and delete boards.
 - Create, rename, reorder, and delete columns.
@@ -24,7 +24,7 @@ docker compose up --build
 
 Open [localhost:3100](http://localhost:3100). The API runs at [localhost:4100](http://localhost:4100/api/health). All published ports bind to localhost.
 
-MongoDB starts as a single-node replica set automatically. The API waits for it to become writable, and the web app waits for the API. Replica-set support is required for atomic card moves.
+MongoDB starts as a single-node replica set automatically. The API waits for it to become writable, and the web app waits for the API. Replica-set support is required because card moves, deletes, creates, and reorders run in transactions.
 
 Load the optional sample board from another terminal:
 

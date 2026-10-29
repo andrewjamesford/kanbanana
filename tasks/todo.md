@@ -29,6 +29,8 @@
 - [completed] Release 1.1: validate frontend forms with the shared schemas and add schema/API/browser regressions
 - [completed] Release 1.1: migrate to TypeScript 7 and the latest stable direct npm dependencies
 - [completed] Release 1.2: route all API responses through serializers and share ID and order-matching helpers
+- [completed] Release 1.2: save card edits and moves in one atomic request
+- [completed] Release 1.2: run multi-document writes (deletes, creates, reorders) in transactions
 
 # Review
 

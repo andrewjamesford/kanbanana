@@ -50,7 +50,15 @@ Browser checks use local Chromium through Playwright. The tests accept an existi
 - Every route response now goes through `lib/serializers.ts`; card and column handlers no longer build response objects by hand, and a column serializer was added.
 - Route IDs are read with a single `idParam` helper. Order arrays that Zod has already validated are converted with `toObjectIds` instead of being re-parsed per entry.
 - Board, column-card, and card-move order checks share one `sameIds` helper. Error messages and response shapes are unchanged.
-- Workspace package versions are `1.2.0`; the release tag is `1.2`. `npm run lint`, `npm run build`, and `npm test` (6 shared and 13 API tests) pass.
+- Workspace package versions are `1.2.0`; the release tag is `1.2`.
+
+### Release 1.2 atomic writes
+
+- Every handler that changes more than one document now runs in a transaction through `lib/transaction.ts`: board, column, and card deletes (including their cascades), card and column creation, and both reorder endpoints.
+- `PATCH /api/cards/:cardId` accepts an optional `placement`, so the card editor saves text and position in a single request instead of up to three. Unmoved cards still send only the text fields. `placement` may name the same column for a within-column move.
+- `services/update-card.ts` replaces `services/move-card.ts` and handles both same-column and cross-column placement.
+- New tests cover the combined update, within-column placement, rejected placements, and fault-injected rollback of deletes, creates, and reorders. With transactions disabled, the rollback tests fail.
+- `npm run lint`, `npm run build`, and `npm test` (7 shared and 18 API tests) pass. The Playwright suite and Docker stack were not run for this release.
 
 ## Review follow-up
 

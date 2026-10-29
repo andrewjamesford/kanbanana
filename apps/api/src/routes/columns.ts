@@ -10,6 +10,7 @@ import { BoardModel, CardModel, ColumnModel } from "../models/index.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { badRequest, notFound } from "../lib/http-error.js";
 import { idParam, sameIds, toObjectIds } from "../lib/object-id.js";
+import { inTransaction } from "../lib/transaction.js";
 import {
   serializeCardSummary,
   serializeColumnSummary,
@@ -46,25 +47,31 @@ columnsRouter.delete(
     const columnId = idParam(request, "columnId");
     const deletedAt = new Date();
 
-    const column = await ColumnModel.findOneAndUpdate(
-      { _id: columnId, deletedAt: null },
-      { deletedAt },
-      { returnDocument: "after" },
-    );
+    const column = await inTransaction(async (session) => {
+      const deleted = await ColumnModel.findOneAndUpdate(
+        { _id: columnId, deletedAt: null },
+        { deletedAt },
+        { returnDocument: "after", session },
+      );
 
-    if (!column) {
-      throw notFound("Column not found");
-    }
+      if (!deleted) {
+        throw notFound("Column not found");
+      }
 
-    await BoardModel.updateOne(
-      { _id: column.boardId, deletedAt: null },
-      { $pull: { columnOrder: column._id } },
-    );
+      await BoardModel.updateOne(
+        { _id: deleted.boardId, deletedAt: null },
+        { $pull: { columnOrder: deleted._id } },
+        { session },
+      );
 
-    await CardModel.updateMany(
-      { columnId: column._id, deletedAt: null },
-      { deletedAt },
-    );
+      await CardModel.updateMany(
+        { columnId: deleted._id, deletedAt: null },
+        { deletedAt },
+        { session },
+      );
+
+      return deleted;
+    });
 
     response.json({
       success: true,
@@ -83,24 +90,28 @@ columnsRouter.post(
     const columnId = idParam(request, "columnId");
     const { title, description } = body;
 
-    const column = await ColumnModel.findOne({
-      _id: columnId,
-      deletedAt: null,
+    const card = await inTransaction(async (session) => {
+      const column = await ColumnModel.findOne({
+        _id: columnId,
+        deletedAt: null,
+      }).session(session);
+
+      if (!column) {
+        throw notFound("Column not found");
+      }
+
+      const created = new CardModel({
+        boardId: column.boardId,
+        columnId: column._id,
+        title,
+        description: description ?? null,
+      });
+      await created.save({ session });
+
+      column.cardOrder.push(created._id);
+      await column.save({ session });
+      return created;
     });
-
-    if (!column) {
-      throw notFound("Column not found");
-    }
-
-    const card = await CardModel.create({
-      boardId: column.boardId,
-      columnId: column._id,
-      title,
-      description: description ?? null,
-    });
-
-    column.cardOrder.push(card._id);
-    await column.save();
 
     response
       .status(201)
@@ -114,31 +125,34 @@ columnsRouter.post(
     const columnId = idParam(request, "columnId");
     const { cardOrder } = body;
 
-    const column = await ColumnModel.findOne({
-      _id: columnId,
-      deletedAt: null,
+    const column = await inTransaction(async (session) => {
+      const current = await ColumnModel.findOne({
+        _id: columnId,
+        deletedAt: null,
+      }).session(session);
+
+      if (!current) {
+        throw notFound("Column not found");
+      }
+
+      const cards = await CardModel.find({
+        columnId: current._id,
+        deletedAt: null,
+      }).session(session);
+
+      if (
+        !sameIds(
+          cards.map((card) => card._id),
+          cardOrder,
+        )
+      ) {
+        throw badRequest("cardOrder must match the column's active cards");
+      }
+
+      current.cardOrder = toObjectIds(cardOrder);
+      await current.save({ session });
+      return current;
     });
-
-    if (!column) {
-      throw notFound("Column not found");
-    }
-
-    const cards = await CardModel.find({
-      columnId: column._id,
-      deletedAt: null,
-    });
-
-    if (
-      !sameIds(
-        cards.map((card) => card._id),
-        cardOrder,
-      )
-    ) {
-      throw badRequest("cardOrder must match the column's active cards");
-    }
-
-    column.cardOrder = toObjectIds(cardOrder);
-    await column.save();
 
     response.json({
       success: true,

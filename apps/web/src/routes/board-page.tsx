@@ -408,11 +408,8 @@ function BoardWorkspace({ boardId }: { boardId: string }) {
             setSaving(true);
             try {
               if (editor.card) {
-                await api(`/cards/${editor.card._id}`, "PATCH", {
-                  title: name,
-                  description,
-                });
-                const placement = placeCard(
+                // One request saves the text and the new position together.
+                const { cardId, ...placement } = placeCard(
                   detail,
                   editor.card._id,
                   destinationId,
@@ -421,20 +418,15 @@ function BoardWorkspace({ boardId }: { boardId: string }) {
                 const current = detail.columns.find(
                   (column) => column._id === editor.card!.columnId,
                 )!;
-                if (destinationId !== current._id)
-                  await api(`/cards/${editor.card._id}/move`, "POST", {
-                    sourceColumnId: placement.sourceColumnId,
-                    destinationColumnId: destinationId,
-                    sourceCardOrder: placement.sourceCardOrder,
-                    destinationCardOrder: placement.destinationCardOrder,
-                  });
-                else if (
+                const moved =
+                  destinationId !== current._id ||
                   JSON.stringify(current.cardOrder) !==
-                  JSON.stringify(placement.destinationCardOrder)
-                )
-                  await api(`/columns/${destinationId}/cards/reorder`, "POST", {
-                    cardOrder: placement.destinationCardOrder,
-                  });
+                    JSON.stringify(placement.destinationCardOrder);
+                await api(`/cards/${cardId}`, "PATCH", {
+                  title: name,
+                  description,
+                  ...(moved && { placement }),
+                });
               } else {
                 await api(`/columns/${destinationId}/cards`, "POST", {
                   title: name,

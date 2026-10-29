@@ -12,6 +12,7 @@ import { asyncHandler } from "../lib/async-handler.js";
 import { getBoardDetail } from "../lib/board-detail.js";
 import { badRequest, notFound } from "../lib/http-error.js";
 import { idParam, sameIds, toObjectIds } from "../lib/object-id.js";
+import { inTransaction } from "../lib/transaction.js";
 import {
   serializeBoardSummary,
   serializeColumnSummary,
@@ -96,18 +97,30 @@ boardsRouter.delete(
     const boardId = idParam(request, "boardId");
     const deletedAt = new Date();
 
-    const board = await BoardModel.findOneAndUpdate(
-      { _id: boardId, deletedAt: null },
-      { deletedAt },
-      { returnDocument: "after" },
-    );
+    const board = await inTransaction(async (session) => {
+      const deleted = await BoardModel.findOneAndUpdate(
+        { _id: boardId, deletedAt: null },
+        { deletedAt },
+        { returnDocument: "after", session },
+      );
 
-    if (!board) {
-      throw notFound("Board not found");
-    }
+      if (!deleted) {
+        throw notFound("Board not found");
+      }
 
-    await ColumnModel.updateMany({ boardId, deletedAt: null }, { deletedAt });
-    await CardModel.updateMany({ boardId, deletedAt: null }, { deletedAt });
+      await ColumnModel.updateMany(
+        { boardId, deletedAt: null },
+        { deletedAt },
+        { session },
+      );
+      await CardModel.updateMany(
+        { boardId, deletedAt: null },
+        { deletedAt },
+        { session },
+      );
+
+      return deleted;
+    });
 
     response.json({
       success: true,
@@ -122,19 +135,23 @@ boardsRouter.post(
     const boardId = idParam(request, "boardId");
     const { name } = body;
 
-    const board = await BoardModel.findOne({ _id: boardId, deletedAt: null });
+    const column = await inTransaction(async (session) => {
+      const board = await BoardModel.findOne({
+        _id: boardId,
+        deletedAt: null,
+      }).session(session);
 
-    if (!board) {
-      throw notFound("Board not found");
-    }
+      if (!board) {
+        throw notFound("Board not found");
+      }
 
-    const column = await ColumnModel.create({
-      boardId,
-      name,
+      const created = new ColumnModel({ boardId, name });
+      await created.save({ session });
+
+      board.columnOrder.push(created._id);
+      await board.save({ session });
+      return created;
     });
-
-    board.columnOrder.push(column._id);
-    await board.save();
 
     response
       .status(201)
@@ -148,24 +165,34 @@ boardsRouter.post(
     const boardId = idParam(request, "boardId");
     const { columnOrder } = body;
 
-    const board = await BoardModel.findOne({ _id: boardId, deletedAt: null });
+    const board = await inTransaction(async (session) => {
+      const current = await BoardModel.findOne({
+        _id: boardId,
+        deletedAt: null,
+      }).session(session);
 
-    if (!board) {
-      throw notFound("Board not found");
-    }
+      if (!current) {
+        throw notFound("Board not found");
+      }
 
-    const columns = await ColumnModel.find({ boardId, deletedAt: null });
-    if (
-      !sameIds(
-        columns.map((column) => column._id),
-        columnOrder,
-      )
-    ) {
-      throw badRequest("columnOrder must match the board's active columns");
-    }
+      const columns = await ColumnModel.find({
+        boardId,
+        deletedAt: null,
+      }).session(session);
 
-    board.columnOrder = toObjectIds(columnOrder);
-    await board.save();
+      if (
+        !sameIds(
+          columns.map((column) => column._id),
+          columnOrder,
+        )
+      ) {
+        throw badRequest("columnOrder must match the board's active columns");
+      }
+
+      current.columnOrder = toObjectIds(columnOrder);
+      await current.save({ session });
+      return current;
+    });
 
     response.json({
       success: true,

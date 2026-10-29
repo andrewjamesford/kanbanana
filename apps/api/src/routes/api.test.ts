@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { after, afterEach, before, test } from "node:test";
+import { after, afterEach, before, mock, test } from "node:test";
 
 import request from "supertest";
 import mongoose from "mongoose";
@@ -445,4 +445,197 @@ test("Zod rejects invalid mutations for every body contract without changing boa
     (await request(app).get(`/api/boards/${board._id}`)).body.data,
     before,
   );
+});
+
+type Created = { _id: string };
+
+// A board with two columns; "Todo" holds cards "One" and "Two".
+async function createWorkspace(app: ReturnType<typeof createApp>) {
+  const post = async (path: string, body: object) =>
+    (await request(app).post(path).send(body)).body.data as Created;
+  const board = await post("/api/boards", { name: "Atomic" });
+  const todo = await post(`/api/boards/${board._id}/columns`, { name: "Todo" });
+  const done = await post(`/api/boards/${board._id}/columns`, { name: "Done" });
+  const one = await post(`/api/columns/${todo._id}/cards`, { title: "One" });
+  const two = await post(`/api/columns/${todo._id}/cards`, { title: "Two" });
+  return { board, todo, done, one, two };
+}
+
+async function boardDetail(app: ReturnType<typeof createApp>, id: string) {
+  return (await request(app).get(`/api/boards/${id}`)).body.data;
+}
+
+test("card update saves text and a cross-column move in one request", async () => {
+  const app = createApp();
+  const { board, todo, done, one, two } = await createWorkspace(app);
+
+  const response = await request(app)
+    .patch(`/api/cards/${one._id}`)
+    .send({
+      title: "Renamed",
+      description: "Moved too",
+      placement: {
+        sourceColumnId: todo._id,
+        destinationColumnId: done._id,
+        sourceCardOrder: [two._id],
+        destinationCardOrder: [one._id],
+      },
+    });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.title, "Renamed");
+  assert.equal(response.body.data.columnId, done._id);
+  const detail = await boardDetail(app, board._id);
+  assert.deepEqual(
+    detail.columns.map((column: { cardOrder: string[] }) => column.cardOrder),
+    [[two._id], [one._id]],
+  );
+});
+
+test("card update can reorder a card within its own column", async () => {
+  const app = createApp();
+  const { board, todo, one, two } = await createWorkspace(app);
+
+  const response = await request(app)
+    .patch(`/api/cards/${one._id}`)
+    .send({
+      placement: {
+        sourceColumnId: todo._id,
+        destinationColumnId: todo._id,
+        sourceCardOrder: [two._id],
+        destinationCardOrder: [two._id, one._id],
+      },
+    });
+
+  assert.equal(response.status, 200);
+  const detail = await boardDetail(app, board._id);
+  assert.deepEqual(detail.columns[0].cardOrder, [two._id, one._id]);
+});
+
+test("a rejected placement leaves the card's text unchanged", async () => {
+  const app = createApp();
+  const { board, todo, done, one, two } = await createWorkspace(app);
+  const before = await boardDetail(app, board._id);
+
+  const badPlacements = [
+    // Destination order omits the moved card.
+    { sourceCardOrder: [two._id], destinationCardOrder: [] },
+    // Source order still lists the moved card.
+    { sourceCardOrder: [one._id, two._id], destinationCardOrder: [one._id] },
+  ];
+  for (const orders of badPlacements) {
+    const response = await request(app)
+      .patch(`/api/cards/${one._id}`)
+      .send({
+        title: "Should not persist",
+        placement: {
+          sourceColumnId: todo._id,
+          destinationColumnId: done._id,
+          ...orders,
+        },
+      });
+    assert.equal(response.status, 400);
+  }
+
+  assert.deepEqual(await boardDetail(app, board._id), before);
+});
+
+test("failed deletes roll back every related write", async (t) => {
+  const app = createApp();
+  // The API logs the simulated 500s; keep test output readable.
+  const quiet = mock.method(console, "error", () => {});
+  t.after(() => quiet.mock.restore());
+  const { board, todo, one } = await createWorkspace(app);
+  const before = await boardDetail(app, board._id);
+  const failure = new Error("simulated write failure");
+
+  // Each delete does its last write through a different model.
+  const cases = [
+    { model: ColumnModel, method: "updateOne", path: `/api/cards/${one._id}` },
+    {
+      model: CardModel,
+      method: "updateMany",
+      path: `/api/columns/${todo._id}`,
+    },
+    {
+      model: CardModel,
+      method: "updateMany",
+      path: `/api/boards/${board._id}`,
+    },
+  ] as const;
+  for (const { model, method, path } of cases) {
+    const stub = mock.method(model, method, async () => {
+      throw failure;
+    });
+    try {
+      const response = await request(app).delete(path);
+      assert.equal(response.status, 500, path);
+    } finally {
+      stub.mock.restore();
+    }
+    assert.deepEqual(await boardDetail(app, board._id), before, path);
+    assert.equal(
+      await CardModel.countDocuments({ deletedAt: { $ne: null } }),
+      0,
+    );
+    assert.equal(
+      await ColumnModel.countDocuments({ deletedAt: { $ne: null } }),
+      0,
+    );
+  }
+});
+
+test("failed creates and reorders do not leave partial writes", async (t) => {
+  const app = createApp();
+  // The API logs the simulated 500s; keep test output readable.
+  const quiet = mock.method(console, "error", () => {});
+  t.after(() => quiet.mock.restore());
+  const { board, todo, done, one, two } = await createWorkspace(app);
+  const before = await boardDetail(app, board._id);
+
+  // Creating a card or column saves the new record first, then its parent.
+  const parentSaves = [
+    {
+      model: ColumnModel,
+      call: () =>
+        request(app)
+          .post(`/api/columns/${todo._id}/cards`)
+          .send({ title: "New" }),
+    },
+    {
+      model: BoardModel,
+      call: () =>
+        request(app)
+          .post(`/api/boards/${board._id}/columns`)
+          .send({ name: "New" }),
+    },
+    {
+      model: ColumnModel,
+      call: () =>
+        request(app)
+          .post(`/api/columns/${todo._id}/cards/reorder`)
+          .send({ cardOrder: [two._id, one._id] }),
+    },
+    {
+      model: BoardModel,
+      call: () =>
+        request(app)
+          .post(`/api/boards/${board._id}/columns/reorder`)
+          .send({ columnOrder: [done._id, todo._id] }),
+    },
+  ];
+  for (const { model, call } of parentSaves) {
+    const stub = mock.method(model.prototype, "save", async () => {
+      throw new Error("simulated write failure");
+    });
+    try {
+      assert.equal((await call()).status, 500);
+    } finally {
+      stub.mock.restore();
+    }
+  }
+
+  assert.deepEqual(await boardDetail(app, board._id), before);
+  assert.equal(await CardModel.countDocuments(), 2);
+  assert.equal(await ColumnModel.countDocuments(), 2);
 });

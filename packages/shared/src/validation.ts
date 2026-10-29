@@ -53,7 +53,16 @@ export const cardCreateSchema = z.strictObject({
   title: cardTitleSchema,
   description: descriptionSchema,
 });
+// Where a card should end up: the full, final order of both affected columns.
+// Source and destination may match, which reorders the card within its column.
+export const cardPlacementSchema = z.strictObject({
+  sourceColumnId: objectIdSchema,
+  destinationColumnId: objectIdSchema,
+  sourceCardOrder: orderSchema,
+  destinationCardOrder: orderSchema,
+});
 export const cardUpdateSchema = cardCreateSchema
+  .extend({ placement: cardPlacementSchema })
   .partial()
   .refine(
     (body) => Object.values(body).some((value) => value !== undefined),
@@ -61,23 +70,17 @@ export const cardUpdateSchema = cardCreateSchema
   );
 export const columnReorderSchema = z.strictObject({ columnOrder: orderSchema });
 export const cardReorderSchema = z.strictObject({ cardOrder: orderSchema });
-export const cardMoveSchema = z
-  .strictObject({
-    sourceColumnId: objectIdSchema,
-    destinationColumnId: objectIdSchema,
-    sourceCardOrder: orderSchema,
-    destinationCardOrder: orderSchema,
-  })
-  .refine(
-    (body) => body.sourceColumnId !== body.destinationColumnId,
-    "Source and destination columns must differ",
-  );
+export const cardMoveSchema = cardPlacementSchema.refine(
+  (body) => body.sourceColumnId !== body.destinationColumnId,
+  "Source and destination columns must differ",
+);
 
 export type BoardCreateInput = z.infer<typeof boardCreateSchema>;
 export type BoardUpdateInput = z.infer<typeof boardUpdateSchema>;
 export type ColumnCreateInput = z.infer<typeof columnCreateSchema>;
 export type CardCreateInput = z.infer<typeof cardCreateSchema>;
 export type CardUpdateInput = z.infer<typeof cardUpdateSchema>;
+export type CardPlacementInput = z.infer<typeof cardPlacementSchema>;
 export type CardMoveInput = z.infer<typeof cardMoveSchema>;
 
 export function validationMessage(error: {
