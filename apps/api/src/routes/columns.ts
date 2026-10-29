@@ -9,17 +9,19 @@ import { Router } from "express";
 import { BoardModel, CardModel, ColumnModel } from "../models/index.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { badRequest, notFound } from "../lib/http-error.js";
-import { parseObjectId, readParam } from "../lib/object-id.js";
+import { idParam, sameIds, toObjectIds } from "../lib/object-id.js";
+import {
+  serializeCardSummary,
+  serializeColumnSummary,
+  toIdString,
+} from "../lib/serializers.js";
 
 export const columnsRouter = Router();
 
 columnsRouter.patch(
   "/:columnId",
   validateBody(columnUpdateSchema, async (body, request, response) => {
-    const columnId = parseObjectId(
-      readParam(request.params.columnId, "columnId"),
-      "columnId",
-    );
+    const columnId = idParam(request, "columnId");
     const { name } = body;
 
     const column = await ColumnModel.findOne({
@@ -34,25 +36,14 @@ columnsRouter.patch(
     column.name = name;
     await column.save();
 
-    response.json({
-      success: true,
-      data: {
-        _id: column._id.toString(),
-        boardId: column.boardId.toString(),
-        name: column.name,
-        cardOrder: column.cardOrder.map((value) => value.toString()),
-      },
-    });
+    response.json({ success: true, data: serializeColumnSummary(column) });
   }),
 );
 
 columnsRouter.delete(
   "/:columnId",
   asyncHandler(async (request, response) => {
-    const columnId = parseObjectId(
-      readParam(request.params.columnId, "columnId"),
-      "columnId",
-    );
+    const columnId = idParam(request, "columnId");
     const deletedAt = new Date();
 
     const column = await ColumnModel.findOneAndUpdate(
@@ -78,8 +69,8 @@ columnsRouter.delete(
     response.json({
       success: true,
       data: {
-        _id: column._id.toString(),
-        boardId: column.boardId.toString(),
+        _id: toIdString(column._id),
+        boardId: toIdString(column.boardId),
         deletedAt,
       },
     });
@@ -89,10 +80,7 @@ columnsRouter.delete(
 columnsRouter.post(
   "/:columnId/cards",
   validateBody(cardCreateSchema, async (body, request, response) => {
-    const columnId = parseObjectId(
-      readParam(request.params.columnId, "columnId"),
-      "columnId",
-    );
+    const columnId = idParam(request, "columnId");
     const { title, description } = body;
 
     const column = await ColumnModel.findOne({
@@ -114,26 +102,16 @@ columnsRouter.post(
     column.cardOrder.push(card._id);
     await column.save();
 
-    response.status(201).json({
-      success: true,
-      data: {
-        _id: card._id.toString(),
-        boardId: card.boardId.toString(),
-        columnId: card.columnId.toString(),
-        title: card.title,
-        description: card.description,
-      },
-    });
+    response
+      .status(201)
+      .json({ success: true, data: serializeCardSummary(card) });
   }),
 );
 
 columnsRouter.post(
   "/:columnId/cards/reorder",
   validateBody(cardReorderSchema, async (body, request, response) => {
-    const columnId = parseObjectId(
-      readParam(request.params.columnId, "columnId"),
-      "columnId",
-    );
+    const columnId = idParam(request, "columnId");
     const { cardOrder } = body;
 
     const column = await ColumnModel.findOne({
@@ -150,28 +128,23 @@ columnsRouter.post(
       deletedAt: null,
     });
 
-    const existingCardIds = cards.map((card) => card._id.toString()).sort();
-    const providedCardIds = cardOrder
-      .map((value) => parseObjectId(value, "cardOrder entry").toString())
-      .sort();
-
     if (
-      existingCardIds.length !== providedCardIds.length ||
-      existingCardIds.some((value, index) => value !== providedCardIds[index])
+      !sameIds(
+        cards.map((card) => card._id),
+        cardOrder,
+      )
     ) {
       throw badRequest("cardOrder must match the column's active cards");
     }
 
-    column.cardOrder = cardOrder.map((value) =>
-      parseObjectId(value, "cardOrder entry"),
-    );
+    column.cardOrder = toObjectIds(cardOrder);
     await column.save();
 
     response.json({
       success: true,
       data: {
-        _id: column._id.toString(),
-        cardOrder: column.cardOrder.map((value) => value.toString()),
+        _id: toIdString(column._id),
+        cardOrder: column.cardOrder.map(toIdString),
       },
     });
   }),

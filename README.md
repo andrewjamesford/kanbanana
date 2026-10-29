@@ -4,7 +4,7 @@
 
 A small Kanban app for organizing work into boards, columns, and cards. Built with React, TypeScript, Express, and MongoDB, following [the MVP PRD](Docs/PRD.md).
 
-Release `1.1` uses shared Zod 4 schemas for API requests and frontend forms. The stack runs TypeScript 7.0.2, React 19.3.1, Express 5.3.0, Mongoose 9.11.4, Vite 8.3.5, and Tailwind CSS 4.3.3. All direct npm dependencies were updated to their latest stable releases for this version; `package-lock.json` records the tested versions.
+Release `1.2` tidies the API internals (shared serializers and ID helpers) without changing behavior. Release `1.1` introduced shared Zod 4 schemas for API requests and frontend forms. The stack runs TypeScript 7.0.2, React 19.3.1, Express 5.3.0, Mongoose 9.11.4, Vite 8.3.5, and Tailwind CSS 4.3.3. All direct npm dependencies were updated to their latest stable releases for this version; `package-lock.json` records the tested versions.
 
 - Create, rename, describe, and delete boards.
 - Create, rename, reorder, and delete columns.

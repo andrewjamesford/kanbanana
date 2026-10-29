@@ -1,10 +1,15 @@
-import type { BoardDetail, BoardSummary, CardSummary } from "@kanbanana/shared";
+import type {
+  BoardDetail,
+  BoardSummary,
+  CardSummary,
+  ColumnSummary,
+} from "@kanbanana/shared";
 
 import type { Board } from "../models/board.js";
 import type { Card } from "../models/card.js";
 import type { Column } from "../models/column.js";
 
-function toIdString(value: { toString(): string }) {
+export function toIdString(value: { toString(): string }) {
   return value.toString();
 }
 
@@ -16,6 +21,15 @@ export function serializeBoardSummary(board: Board): BoardSummary {
     columnOrder: board.columnOrder.map(toIdString),
     createdAt: board.createdAt.toISOString(),
     updatedAt: board.updatedAt.toISOString(),
+  };
+}
+
+export function serializeColumnSummary(column: Column): ColumnSummary {
+  return {
+    _id: toIdString(column._id),
+    boardId: toIdString(column.boardId),
+    name: column.name,
+    cardOrder: column.cardOrder.map(toIdString),
   };
 }
 
@@ -36,12 +50,7 @@ export function serializeBoardDetail(
 ): BoardDetail {
   return {
     board: serializeBoardSummary(board),
-    columns: columns.map((column) => ({
-      _id: toIdString(column._id),
-      boardId: toIdString(column.boardId),
-      name: column.name,
-      cardOrder: column.cardOrder.map(toIdString),
-    })),
+    columns: columns.map(serializeColumnSummary),
     cards: cards.map(serializeCardSummary),
   };
 }

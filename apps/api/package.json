@@ -1,7 +1,7 @@
 {
   "name": "@kanbanana/api",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -12,7 +12,7 @@
     "seed": "tsx --conditions=development src/seed.ts"
   },
   "dependencies": {
-    "@kanbanana/shared": "1.1.0",
+    "@kanbanana/shared": "1.2.0",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",

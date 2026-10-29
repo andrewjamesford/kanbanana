@@ -1,8 +1,8 @@
 import type { CardMoveInput } from "@kanbanana/shared";
 import { CardModel, ColumnModel } from "../models/index.js";
 import { badRequest, notFound } from "../lib/http-error.js";
-import { objectIdEquals, parseObjectId } from "../lib/object-id.js";
-import type { Types } from "mongoose";
+import { objectIdEquals, sameIds, toObjectIds } from "../lib/object-id.js";
+import { Types } from "mongoose";
 
 export async function moveCard(cardId: Types.ObjectId, input: CardMoveInput) {
   const {
@@ -11,11 +11,8 @@ export async function moveCard(cardId: Types.ObjectId, input: CardMoveInput) {
     sourceCardOrder,
     destinationCardOrder,
   } = input;
-  const sourceId = parseObjectId(sourceColumnId, "sourceColumnId");
-  const destinationId = parseObjectId(
-    destinationColumnId,
-    "destinationColumnId",
-  );
+  const sourceId = new Types.ObjectId(sourceColumnId);
+  const destinationId = new Types.ObjectId(destinationColumnId);
 
   if (objectIdEquals(sourceId, destinationId)) {
     throw badRequest(
@@ -71,31 +68,14 @@ export async function moveCard(cardId: Types.ObjectId, input: CardMoveInput) {
         deletedAt: null,
       }).session(session);
 
-      const expectedSourceIds = sourceCards
-        .filter((sourceCard) => !objectIdEquals(sourceCard._id, card._id))
-        .map((sourceCard) => sourceCard._id.toString())
-        .sort();
-      const expectedDestinationIds = [
-        ...destinationCards.map((destinationCard) =>
-          destinationCard._id.toString(),
-        ),
-        card._id.toString(),
-      ].sort();
-      const providedSourceIds = sourceCardOrder
-        .map((value) =>
-          parseObjectId(value, "sourceCardOrder entry").toString(),
-        )
-        .sort();
-      const providedDestinationIds = destinationCardOrder
-        .map((value) =>
-          parseObjectId(value, "destinationCardOrder entry").toString(),
-        )
-        .sort();
+      const remainingSourceCards = sourceCards.filter(
+        (sourceCard) => !objectIdEquals(sourceCard._id, card._id),
+      );
 
       if (
-        expectedSourceIds.length !== providedSourceIds.length ||
-        expectedSourceIds.some(
-          (value, index) => value !== providedSourceIds[index],
+        !sameIds(
+          remainingSourceCards.map((sourceCard) => sourceCard._id),
+          sourceCardOrder,
         )
       ) {
         throw badRequest(
@@ -104,9 +84,9 @@ export async function moveCard(cardId: Types.ObjectId, input: CardMoveInput) {
       }
 
       if (
-        expectedDestinationIds.length !== providedDestinationIds.length ||
-        expectedDestinationIds.some(
-          (value, index) => value !== providedDestinationIds[index],
+        !sameIds(
+          [...destinationCards.map((item) => item._id), card._id],
+          destinationCardOrder,
         )
       ) {
         throw badRequest(
@@ -114,12 +94,8 @@ export async function moveCard(cardId: Types.ObjectId, input: CardMoveInput) {
         );
       }
 
-      sourceColumn.cardOrder = sourceCardOrder.map((value) =>
-        parseObjectId(value, "sourceCardOrder entry"),
-      );
-      destinationColumn.cardOrder = destinationCardOrder.map((value) =>
-        parseObjectId(value, "destinationCardOrder entry"),
-      );
+      sourceColumn.cardOrder = toObjectIds(sourceCardOrder);
+      destinationColumn.cardOrder = toObjectIds(destinationCardOrder);
       card.columnId = destinationColumn._id;
       await sourceColumn.save({ session });
       await destinationColumn.save({ session });

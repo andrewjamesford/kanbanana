@@ -11,8 +11,12 @@ import { BoardModel, CardModel, ColumnModel } from "../models/index.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { getBoardDetail } from "../lib/board-detail.js";
 import { badRequest, notFound } from "../lib/http-error.js";
-import { parseObjectId, readParam } from "../lib/object-id.js";
-import { serializeBoardSummary } from "../lib/serializers.js";
+import { idParam, sameIds, toObjectIds } from "../lib/object-id.js";
+import {
+  serializeBoardSummary,
+  serializeColumnSummary,
+  toIdString,
+} from "../lib/serializers.js";
 
 export const boardsRouter = Router();
 
@@ -50,10 +54,7 @@ boardsRouter.post(
 boardsRouter.get(
   "/:boardId",
   asyncHandler(async (request, response) => {
-    const boardId = parseObjectId(
-      readParam(request.params.boardId, "boardId"),
-      "boardId",
-    );
+    const boardId = idParam(request, "boardId");
     const boardDetail = await getBoardDetail(boardId.toString());
 
     response.json({ success: true, data: boardDetail });
@@ -63,10 +64,7 @@ boardsRouter.get(
 boardsRouter.patch(
   "/:boardId",
   validateBody(boardUpdateSchema, async (body, request, response) => {
-    const boardId = parseObjectId(
-      readParam(request.params.boardId, "boardId"),
-      "boardId",
-    );
+    const boardId = idParam(request, "boardId");
     const { name, description } = body;
 
     const board = await BoardModel.findOne({
@@ -95,10 +93,7 @@ boardsRouter.patch(
 boardsRouter.delete(
   "/:boardId",
   asyncHandler(async (request, response) => {
-    const boardId = parseObjectId(
-      readParam(request.params.boardId, "boardId"),
-      "boardId",
-    );
+    const boardId = idParam(request, "boardId");
     const deletedAt = new Date();
 
     const board = await BoardModel.findOneAndUpdate(
@@ -116,7 +111,7 @@ boardsRouter.delete(
 
     response.json({
       success: true,
-      data: { _id: board._id.toString(), deletedAt },
+      data: { _id: toIdString(board._id), deletedAt },
     });
   }),
 );
@@ -124,10 +119,7 @@ boardsRouter.delete(
 boardsRouter.post(
   "/:boardId/columns",
   validateBody(columnCreateSchema, async (body, request, response) => {
-    const boardId = parseObjectId(
-      readParam(request.params.boardId, "boardId"),
-      "boardId",
-    );
+    const boardId = idParam(request, "boardId");
     const { name } = body;
 
     const board = await BoardModel.findOne({ _id: boardId, deletedAt: null });
@@ -144,25 +136,16 @@ boardsRouter.post(
     board.columnOrder.push(column._id);
     await board.save();
 
-    response.status(201).json({
-      success: true,
-      data: {
-        _id: column._id.toString(),
-        boardId: column.boardId.toString(),
-        name: column.name,
-        cardOrder: [],
-      },
-    });
+    response
+      .status(201)
+      .json({ success: true, data: serializeColumnSummary(column) });
   }),
 );
 
 boardsRouter.post(
   "/:boardId/columns/reorder",
   validateBody(columnReorderSchema, async (body, request, response) => {
-    const boardId = parseObjectId(
-      readParam(request.params.boardId, "boardId"),
-      "boardId",
-    );
+    const boardId = idParam(request, "boardId");
     const { columnOrder } = body;
 
     const board = await BoardModel.findOne({ _id: boardId, deletedAt: null });
@@ -172,32 +155,23 @@ boardsRouter.post(
     }
 
     const columns = await ColumnModel.find({ boardId, deletedAt: null });
-    const existingColumnIds = columns
-      .map((column) => column._id.toString())
-      .sort();
-    const providedColumnIds = columnOrder
-      .map((value) => parseObjectId(value, "columnOrder entry").toString())
-      .sort();
-
     if (
-      existingColumnIds.length !== providedColumnIds.length ||
-      existingColumnIds.some(
-        (value, index) => value !== providedColumnIds[index],
+      !sameIds(
+        columns.map((column) => column._id),
+        columnOrder,
       )
     ) {
       throw badRequest("columnOrder must match the board's active columns");
     }
 
-    board.columnOrder = columnOrder.map((value) =>
-      parseObjectId(value, "columnOrder entry"),
-    );
+    board.columnOrder = toObjectIds(columnOrder);
     await board.save();
 
     response.json({
       success: true,
       data: {
-        _id: board._id.toString(),
-        columnOrder: board.columnOrder.map((value) => value.toString()),
+        _id: toIdString(board._id),
+        columnOrder: board.columnOrder.map(toIdString),
       },
     });
   }),

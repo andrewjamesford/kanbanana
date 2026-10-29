@@ -1,23 +1,20 @@
 import { cardUpdateSchema, cardMoveSchema } from "@kanbanana/shared";
 import { moveCard } from "../services/move-card.js";
-import { serializeCardSummary } from "../lib/serializers.js";
+import { serializeCardSummary, toIdString } from "../lib/serializers.js";
 import { validateBody } from "../lib/validation.js";
 import { Router } from "express";
 
 import { CardModel, ColumnModel } from "../models/index.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { notFound } from "../lib/http-error.js";
-import { parseObjectId, readParam } from "../lib/object-id.js";
+import { idParam } from "../lib/object-id.js";
 
 export const cardsRouter = Router();
 
 cardsRouter.get(
   "/:cardId",
   asyncHandler(async (request, response) => {
-    const cardId = parseObjectId(
-      readParam(request.params.cardId, "cardId"),
-      "cardId",
-    );
+    const cardId = idParam(request, "cardId");
     const card = await CardModel.findOne({
       _id: cardId,
       deletedAt: null,
@@ -30,10 +27,7 @@ cardsRouter.get(
 cardsRouter.patch(
   "/:cardId",
   validateBody(cardUpdateSchema, async (body, request, response) => {
-    const cardId = parseObjectId(
-      readParam(request.params.cardId, "cardId"),
-      "cardId",
-    );
+    const cardId = idParam(request, "cardId");
     const { title, description } = body;
 
     const card = await CardModel.findOne({ _id: cardId, deletedAt: null });
@@ -52,26 +46,14 @@ cardsRouter.patch(
 
     await card.save();
 
-    response.json({
-      success: true,
-      data: {
-        _id: card._id.toString(),
-        boardId: card.boardId.toString(),
-        columnId: card.columnId.toString(),
-        title: card.title,
-        description: card.description,
-      },
-    });
+    response.json({ success: true, data: serializeCardSummary(card) });
   }),
 );
 
 cardsRouter.delete(
   "/:cardId",
   asyncHandler(async (request, response) => {
-    const cardId = parseObjectId(
-      readParam(request.params.cardId, "cardId"),
-      "cardId",
-    );
+    const cardId = idParam(request, "cardId");
     const deletedAt = new Date();
 
     const card = await CardModel.findOneAndUpdate(
@@ -92,8 +74,8 @@ cardsRouter.delete(
     response.json({
       success: true,
       data: {
-        _id: card._id.toString(),
-        columnId: card.columnId.toString(),
+        _id: toIdString(card._id),
+        columnId: toIdString(card.columnId),
         deletedAt,
       },
     });
@@ -103,44 +85,25 @@ cardsRouter.delete(
 cardsRouter.post(
   "/:cardId/move",
   validateBody(cardMoveSchema, async (body, request, response) => {
-    const cardId = parseObjectId(
-      readParam(request.params.cardId, "cardId"),
-      "cardId",
-    );
-    const {
-      sourceColumnId,
-      destinationColumnId,
-      sourceCardOrder,
-      destinationCardOrder,
-    } = body;
+    const cardId = idParam(request, "cardId");
 
-    const { card, sourceColumn, destinationColumn } = await moveCard(cardId, {
-      sourceColumnId,
-      destinationColumnId,
-      sourceCardOrder,
-      destinationCardOrder,
-    });
+    const { card, sourceColumn, destinationColumn } = await moveCard(
+      cardId,
+      body,
+    );
 
     response.json({
       success: true,
       data: {
-        boardId: card.boardId.toString(),
+        boardId: toIdString(card.boardId),
         updatedCard: {
-          _id: card._id.toString(),
-          columnId: card.columnId.toString(),
+          _id: toIdString(card._id),
+          columnId: toIdString(card.columnId),
         },
-        updatedColumns: [
-          {
-            _id: sourceColumn._id.toString(),
-            cardOrder: sourceColumn.cardOrder.map((value) => value.toString()),
-          },
-          {
-            _id: destinationColumn._id.toString(),
-            cardOrder: destinationColumn.cardOrder.map((value) =>
-              value.toString(),
-            ),
-          },
-        ],
+        updatedColumns: [sourceColumn, destinationColumn].map((column) => ({
+          _id: toIdString(column._id),
+          cardOrder: column.cardOrder.map(toIdString),
+        })),
       },
     });
   }),

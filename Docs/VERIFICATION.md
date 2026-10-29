@@ -45,6 +45,13 @@ Browser checks use local Chromium through Playwright. The tests accept an existi
 - Shared schemas export compiled JavaScript in production and TypeScript in development. The root build compiles shared code before its consumers. The board detail route loads separately to keep the main bundle below the build warning threshold.
 - Workspace package versions are `1.1.0`; the release tag is `1.1`.
 
+## Release 1.2 API consistency
+
+- Every route response now goes through `lib/serializers.ts`; card and column handlers no longer build response objects by hand, and a column serializer was added.
+- Route IDs are read with a single `idParam` helper. Order arrays that Zod has already validated are converted with `toObjectIds` instead of being re-parsed per entry.
+- Board, column-card, and card-move order checks share one `sameIds` helper. Error messages and response shapes are unchanged.
+- Workspace package versions are `1.2.0`; the release tag is `1.2`. `npm run lint`, `npm run build`, and `npm test` (6 shared and 13 API tests) pass.
+
 ## Review follow-up
 
 The initial independent subagent review identified two issues: pointer drops outside all targets could still move a card, and long unbroken board names could overflow mobile layouts. Pointer drags now require an actual target, while keyboard drags retain nearest-target detection. The board heading now shrinks and wraps within its available width. Browser regressions cover both fixes.
