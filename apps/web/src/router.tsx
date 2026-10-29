@@ -6,7 +6,13 @@ import {
   createRouter,
 } from "@tanstack/react-router";
 
-import { BoardPage } from "./routes/board-page";
+import { lazy, Suspense } from "react";
+import { LoadingState } from "./components/query-state";
+const BoardPage = lazy(() =>
+  import("./routes/board-page").then((module) => ({
+    default: module.BoardPage,
+  })),
+);
 import { BoardsPage } from "./routes/boards-page";
 import { AppShell } from "./ui/app-shell";
 
@@ -35,7 +41,11 @@ const boardsRoute = createRoute({
 const boardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/boards/$boardId",
-  component: BoardPage,
+  component: () => (
+    <Suspense fallback={<LoadingState />}>
+      <BoardPage />
+    </Suspense>
+  ),
 });
 
 const indexRoute = createRoute({

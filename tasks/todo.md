@@ -25,6 +25,10 @@
 - [completed] Apply compatible dependency patches and verify the dependency audit
 - [completed] Document setup, environment variables, seed behavior, API contracts, and verification
 
+- [completed] Release 1.1: replace custom request validation with shared Zod schemas and typed handlers
+- [completed] Release 1.1: validate frontend forms with the shared schemas and add schema/API/browser regressions
+- [completed] Release 1.1: migrate to TypeScript 7 and the latest stable direct npm dependencies
+
 # Review
 
 The PRD's MVP is implemented. The frontend uses live API data, shadcn-style Radix components, TanStack Router and Query, and dnd-kit. Ordering persists in MongoDB; card moves run inside a transaction. Repeatable seed data and Docker health checks support local development. See `Docs/VERIFICATION.md` for the checks and results.

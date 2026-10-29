@@ -2,7 +2,7 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 
-const root = path.resolve(__dirname, "../..");
+const root = path.resolve(import.meta.dirname, "../..");
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, root, "");
   return {
@@ -20,6 +20,6 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
+    resolve: { alias: { "@": path.resolve(import.meta.dirname, "./src") } },
   };
 });

@@ -1,17 +1,10 @@
+import type { CardMoveInput } from "@kanbanana/shared";
 import { CardModel, ColumnModel } from "../models/index.js";
 import { badRequest, notFound } from "../lib/http-error.js";
 import { objectIdEquals, parseObjectId } from "../lib/object-id.js";
 import type { Types } from "mongoose";
 
-export async function moveCard(
-  cardId: Types.ObjectId,
-  input: {
-    sourceColumnId: string;
-    destinationColumnId: string;
-    sourceCardOrder: string[];
-    destinationCardOrder: string[];
-  },
-) {
+export async function moveCard(cardId: Types.ObjectId, input: CardMoveInput) {
   const {
     sourceColumnId,
     destinationColumnId,

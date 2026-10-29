@@ -1,3 +1,4 @@
+import { objectIdSchema } from "@kanbanana/shared";
 import { Types } from "mongoose";
 
 import { badRequest } from "./http-error.js";
@@ -16,11 +17,12 @@ export function readParam(
 }
 
 export function parseObjectId(value: unknown, fieldName: string) {
-  if (typeof value !== "string" || !/^[a-f\d]{24}$/i.test(value)) {
+  const parsed = objectIdSchema.safeParse(value);
+  if (!parsed.success) {
     throw badRequest(`Invalid ${fieldName}`);
   }
 
-  return new Types.ObjectId(value);
+  return new Types.ObjectId(parsed.data);
 }
 
 export function objectIdEquals(left: Types.ObjectId, right: Types.ObjectId) {

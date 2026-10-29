@@ -95,7 +95,7 @@ export function BoardsPage() {
                 <Link
                   to="/boards/$boardId"
                   params={{ boardId: board._id }}
-                  className="flex flex-1 flex-col gap-4 p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  className="flex flex-1 flex-col gap-4 p-6 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 >
                   <div className="flex items-center justify-between">
                     <span className="rounded-lg bg-secondary p-2.5 text-secondary-foreground">
@@ -104,7 +104,7 @@ export function BoardsPage() {
                     <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
                   </div>
                   <div>
-                    <h3 className="break-words text-lg font-semibold">
+                    <h3 className="wrap-break-word text-lg font-semibold">
                       {board.name}
                     </h3>
                     <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">

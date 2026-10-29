@@ -553,3 +553,40 @@ test("maximum-length unbroken board names fit mobile viewports", async ({
     ).toBe(true);
   }
 });
+
+test("shared Zod rules reject invalid form input before writing and normalize submitted values", async ({
+  page,
+}) => {
+  const { writes } = await mockReviewBoard(page, "Client validation");
+  for (const [button, field, submit, message] of [
+    ["Edit board", "Name", "Save changes", "Name is required"],
+    ["Edit column Todo", "Name", "Save changes", "Name is required"],
+    ["Edit card Stay put", "Title", "Save changes", "Title is required"],
+  ]) {
+    await page.getByRole("button", { name: button, exact: true }).click();
+    await page.getByRole("textbox", { name: field, exact: true }).fill("   ");
+    await page.getByRole("button", { name: submit, exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText(message);
+    expect(writes).toEqual([]);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  }
+  await page
+    .getByRole("button", { name: "Edit card Stay put", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Title", exact: true })
+    .fill("  Updated title  ");
+  await page
+    .getByRole("textbox", { name: "Description optional" })
+    .fill("  Updated description  ");
+  const submitted = page.waitForRequest(
+    (request) =>
+      request.method() === "PATCH" && request.url().includes("/api/cards/"),
+  );
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  expect((await submitted).postDataJSON()).toEqual({
+    title: "Updated title",
+    description: "Updated description",
+  });
+  await saved(page);
+});

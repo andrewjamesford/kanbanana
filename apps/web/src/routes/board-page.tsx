@@ -198,12 +198,12 @@ function BoardWorkspace({ boardId }: { boardId: string }) {
             <span className="mt-1 shrink-0 rounded-lg bg-secondary p-2 text-secondary-foreground">
               <LayoutDashboard className="size-5" />
             </span>
-            <h1 className="min-w-0 max-w-3xl flex-1 break-words text-3xl font-semibold tracking-tight">
+            <h1 className="min-w-0 max-w-3xl flex-1 wrap-break-word text-3xl font-semibold tracking-tight">
               {board.name}
             </h1>
           </div>
           {board.description && (
-            <p className="max-w-2xl whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
+            <p className="max-w-2xl whitespace-pre-wrap wrap-break-word text-sm leading-6 text-muted-foreground">
               {board.description}
             </p>
           )}
@@ -353,6 +353,7 @@ function BoardWorkspace({ boardId }: { boardId: string }) {
       )}
       {editor?.kind === "column" && (
         <EntityDialog
+          entity="column"
           title={editor.column ? "Edit column" : "Add a column"}
           description="Give this step in your workflow a name."
           name={editor.column?.name}

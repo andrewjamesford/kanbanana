@@ -72,7 +72,7 @@ export function KanbanColumn({
         >
           <GripVertical className="size-4" />
         </button>
-        <h2 className="min-w-0 flex-1 break-words text-sm font-semibold">
+        <h2 className="min-w-0 flex-1 wrap-break-word text-sm font-semibold">
           {column.name}
         </h2>
         <span className="rounded-md bg-background px-2 py-1 text-xs text-muted-foreground">
@@ -174,7 +174,7 @@ function KanbanCard({
         transition,
         opacity: isDragging ? 0.25 : 1,
       }}
-      className="group flex items-start gap-1 rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
+      className="group flex items-start gap-1 rounded-lg border border-border bg-card p-3 shadow-xs transition-shadow hover:shadow-md"
     >
       <button
         ref={setActivatorNodeRef}
@@ -189,14 +189,14 @@ function KanbanCard({
       <button
         disabled={disabled}
         onClick={edit}
-        className="min-w-0 flex-1 rounded-sm px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="min-w-0 flex-1 rounded-sm px-1 py-0.5 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={`Edit card ${card.title}`}
       >
-        <h3 className="break-words text-sm font-medium leading-5">
+        <h3 className="wrap-break-word text-sm font-medium leading-5">
           {card.title}
         </h3>
         {card.description && (
-          <p className="mt-2 line-clamp-3 whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">
+          <p className="mt-2 line-clamp-3 whitespace-pre-wrap wrap-break-word text-xs leading-5 text-muted-foreground">
             {card.description}
           </p>
         )}

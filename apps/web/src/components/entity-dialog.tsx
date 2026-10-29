@@ -1,3 +1,11 @@
+import {
+  boardCreateSchema,
+  columnCreateSchema,
+  cardCreateSchema,
+  validationMessage,
+  MAX_NAME_LENGTH,
+  MAX_DESCRIPTION_LENGTH,
+} from "@kanbanana/shared";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import {
@@ -13,6 +21,7 @@ import { errorMessage } from "../lib/api";
 export function EntityDialog({
   title,
   description,
+  entity = "board",
   label = "Name",
   name = "",
   text,
@@ -24,6 +33,7 @@ export function EntityDialog({
 }: {
   title: string;
   description: string;
+  entity?: "board" | "column" | "card";
   label?: string;
   name?: string;
   text?: string | null;
@@ -65,14 +75,36 @@ export function EntityDialog({
           </DialogDescription>
         </div>
         <form
+          noValidate
           className="grid gap-5"
           onSubmit={async (event) => {
             event.preventDefault();
-            if (!value.trim() || pending) return;
+            if (pending) return;
+            const schema =
+              entity === "card"
+                ? cardCreateSchema
+                : entity === "column"
+                  ? columnCreateSchema
+                  : boardCreateSchema;
+            const payload =
+              entity === "card"
+                ? { title: value, description: details }
+                : entity === "column"
+                  ? { name: value }
+                  : { name: value, description: details };
+            const result = schema.safeParse(payload);
+            if (!result.success) {
+              setError(validationMessage(result.error));
+              return;
+            }
             setPending(true);
             setError("");
             try {
-              await onSave(value.trim(), details.trim());
+              const fields = result.data;
+              await onSave(
+                "title" in fields ? fields.title : fields.name,
+                "description" in fields ? (fields.description ?? "") : "",
+              );
               onClose();
             } catch (failure) {
               setError(errorMessage(failure));
@@ -91,7 +123,7 @@ export function EntityDialog({
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
                 required
-                maxLength={200}
+                maxLength={MAX_NAME_LENGTH}
                 autoFocus
               />
             </div>
@@ -109,7 +141,7 @@ export function EntityDialog({
                 <Textarea
                   id={`${id}-description`}
                   value={details}
-                  maxLength={10000}
+                  maxLength={MAX_DESCRIPTION_LENGTH}
                   onChange={(event) => setDetails(event.target.value)}
                 />
               </div>
@@ -135,7 +167,7 @@ export function EntityDialog({
             <Button variant="secondary" disabled={pending} onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || !value.trim()}>
+            <Button type="submit" disabled={pending}>
               {pending && <Loader2 className="animate-spin" />}
               {submitLabel}
             </Button>

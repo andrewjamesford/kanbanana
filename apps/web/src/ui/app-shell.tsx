@@ -30,7 +30,7 @@ export function AppShell({ children }: PropsWithChildren) {
         <div className="mx-auto flex h-20 max-w-[1600px] items-center justify-between px-5 sm:px-8">
           <Link
             to="/boards"
-            className="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex items-center gap-3 rounded-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Kanbanana home"
           >
             <img

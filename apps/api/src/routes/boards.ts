@@ -1,3 +1,9 @@
+import {
+  boardCreateSchema,
+  boardUpdateSchema,
+  columnCreateSchema,
+  columnReorderSchema,
+} from "@kanbanana/shared";
 import { validateBody } from "../lib/validation.js";
 import { Router } from "express";
 
@@ -26,16 +32,8 @@ boardsRouter.get(
 
 boardsRouter.post(
   "/",
-  validateBody({ name: "text", description: "description" }),
-  asyncHandler(async (request, response) => {
-    const { name, description } = request.body as {
-      name?: string;
-      description?: string | null;
-    };
-
-    if (!name?.trim()) {
-      throw badRequest("Board name is required");
-    }
+  validateBody(boardCreateSchema, async (body, request, response) => {
+    const { name, description } = body;
 
     const board = await BoardModel.create({
       name,
@@ -64,16 +62,12 @@ boardsRouter.get(
 
 boardsRouter.patch(
   "/:boardId",
-  validateBody({ name: "text", description: "description" }),
-  asyncHandler(async (request, response) => {
+  validateBody(boardUpdateSchema, async (body, request, response) => {
     const boardId = parseObjectId(
       readParam(request.params.boardId, "boardId"),
       "boardId",
     );
-    const { name, description } = request.body as {
-      name?: string;
-      description?: string | null;
-    };
+    const { name, description } = body;
 
     const board = await BoardModel.findOne({
       _id: boardId,
@@ -85,10 +79,6 @@ boardsRouter.patch(
     }
 
     if (name !== undefined) {
-      if (!name.trim()) {
-        throw badRequest("Board name cannot be empty");
-      }
-
       board.name = name;
     }
 
@@ -114,7 +104,7 @@ boardsRouter.delete(
     const board = await BoardModel.findOneAndUpdate(
       { _id: boardId, deletedAt: null },
       { deletedAt },
-      { new: true },
+      { returnDocument: "after" },
     );
 
     if (!board) {
@@ -133,17 +123,12 @@ boardsRouter.delete(
 
 boardsRouter.post(
   "/:boardId/columns",
-  validateBody({ name: "text" }),
-  asyncHandler(async (request, response) => {
+  validateBody(columnCreateSchema, async (body, request, response) => {
     const boardId = parseObjectId(
       readParam(request.params.boardId, "boardId"),
       "boardId",
     );
-    const { name } = request.body as { name?: string };
-
-    if (!name?.trim()) {
-      throw badRequest("Column name is required");
-    }
+    const { name } = body;
 
     const board = await BoardModel.findOne({ _id: boardId, deletedAt: null });
 
@@ -173,17 +158,12 @@ boardsRouter.post(
 
 boardsRouter.post(
   "/:boardId/columns/reorder",
-  validateBody({ columnOrder: "ids" }),
-  asyncHandler(async (request, response) => {
+  validateBody(columnReorderSchema, async (body, request, response) => {
     const boardId = parseObjectId(
       readParam(request.params.boardId, "boardId"),
       "boardId",
     );
-    const { columnOrder } = request.body as { columnOrder?: string[] };
-
-    if (!Array.isArray(columnOrder)) {
-      throw badRequest("columnOrder must be an array");
-    }
+    const { columnOrder } = body;
 
     const board = await BoardModel.findOne({ _id: boardId, deletedAt: null });
 

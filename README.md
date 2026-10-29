@@ -4,6 +4,8 @@
 
 A small Kanban app for organizing work into boards, columns, and cards. Built with React, TypeScript, Express, and MongoDB, following [the MVP PRD](Docs/PRD.md).
 
+Release `1.1` uses shared Zod 4 schemas for API requests and frontend forms. The stack runs TypeScript 7.0.2, React 19.3.1, Express 5.3.0, Mongoose 9.11.4, Vite 8.3.5, and Tailwind CSS 4.3.3. All direct npm dependencies were updated to their latest stable releases for this version; `package-lock.json` records the tested versions.
+
 - Create, rename, describe, and delete boards.
 - Create, rename, reorder, and delete columns.
 - Create and edit cards with optional descriptions.
@@ -95,7 +97,7 @@ npm run build
 npm test
 ```
 
-`lint` checks TypeScript in every workspace. API tests use an isolated temporary MongoDB replica set and never use your development database. The first run may download a MongoDB binary and needs network access.
+`lint` checks TypeScript in every workspace. `npm test` runs shared Zod schema tests followed by the model and API tests. API tests use an isolated temporary MongoDB replica set and never use your development database. The first run may download a MongoDB binary and needs network access.
 
 With the Docker stack running, run the browser checks:
 
@@ -104,17 +106,19 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The browser suite creates its own temporary board and soft-deletes it afterward. It covers CRUD, persistence after reload, keyboard and pointer dragging, non-drag movement, optimistic rollback, responsive layout, theme persistence, and error recovery. It targets `http://localhost:3100` by default. Set `E2E_BASE_URL` for another local instance, or `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to use an existing Chromium executable. Failure traces and screenshots go to `test-results`.
+The browser suite creates its own temporary board and soft-deletes it afterward. It covers CRUD, persistence after reload, keyboard and pointer dragging, non-drag movement, optimistic rollback, responsive layout, theme persistence, error recovery, and client-side Zod validation. It targets `http://localhost:3100` by default. Set `E2E_BASE_URL` for another local instance, or `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to use an existing Chromium executable. Failure traces and screenshots go to `test-results`.
 
 ## Architecture
 
 ```text
 apps/web/          React, TanStack Router and Query, Tailwind, shadcn-style Radix components, dnd-kit
 apps/api/          Express routes, transaction service, validation, Mongoose models, seed command
-packages/shared/  Board, column, and card response types
+packages/shared/  Response types, shared Zod input schemas, inferred input types, and schema tests
 Docs/PRD.md       Product requirements
 Docs/VERIFICATION.md  MVP implementation and verification record
 ```
+
+`npm run build` compiles the shared package first, then the API and frontend. The shared package exports compiled JavaScript for production; development commands use its TypeScript source through the `development` export condition for hot reload. Tailwind 4 loads the existing semantic theme through `@config` and its PostCSS integration.
 
 The board list is at `/boards`; `/` redirects there. A board at `/boards/:boardId` loads board metadata, ordered columns, and cards in one hydrated request. Mutations invalidate the relevant TanStack Query caches. Drag operations update the board cache optimistically and restore it on failure.
 
@@ -124,7 +128,7 @@ Deletes are soft deletes. Board and column deletion also hide their descendants.
 
 ### API
 
-Success responses use `{ "success": true, "data": ... }`. Errors use `{ "success": false, "error": "message" }` with the relevant HTTP status. Names and titles allow up to 200 characters; descriptions allow up to 10,000. Unexpected fields and invalid types are rejected.
+Success responses use `{ "success": true, "data": ... }`. Errors use `{ "success": false, "error": "message" }` with the relevant HTTP status. Names and titles allow up to 200 characters; descriptions allow up to 10,000. Strict shared Zod schemas reject unexpected fields, invalid types, blank required values, malformed IDs, duplicate order IDs, and empty updates. The API passes parsed, typed data to its handlers, and forms use the same entity schemas before submitting. Text is trimmed and IDs are normalized to lowercase. Mongoose still validates database records.
 
 | Method | Path | Purpose |
 | --- | --- | --- |

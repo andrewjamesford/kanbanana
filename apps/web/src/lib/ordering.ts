@@ -1,12 +1,6 @@
-import type { BoardDetail } from "@kanbanana/shared";
+import type { BoardDetail, CardMoveInput } from "@kanbanana/shared";
 
-export type CardPlacement = {
-  cardId: string;
-  sourceColumnId: string;
-  destinationColumnId: string;
-  sourceCardOrder: string[];
-  destinationCardOrder: string[];
-};
+export type CardPlacement = CardMoveInput & { cardId: string };
 
 // Both drag-and-drop and the card form use the same explicit ordering contract.
 export function placeCard(

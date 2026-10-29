@@ -36,6 +36,7 @@ export function CardEditor({
     .cardOrder.filter((id) => id !== card?._id);
   return (
     <EntityDialog
+      entity="card"
       title={card ? "Edit card" : "Add a card"}
       description={
         card

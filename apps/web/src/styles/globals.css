@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
 
 :root {
   --radius: 0.5rem;
@@ -89,7 +88,7 @@ button {
 }
 
 @layer components {
-  .drag-handle { @apply flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50; touch-action: none; cursor: grab; }
+  .drag-handle { @apply flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50; touch-action: none; cursor: grab; }
   .drag-handle:active { cursor: grabbing; }
   .board-scroll { scrollbar-width: thin; scrollbar-color: var(--accent) transparent; }
 }

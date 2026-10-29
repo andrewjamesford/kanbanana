@@ -1,3 +1,8 @@
+import {
+  columnUpdateSchema,
+  cardCreateSchema,
+  cardReorderSchema,
+} from "@kanbanana/shared";
 import { validateBody } from "../lib/validation.js";
 import { Router } from "express";
 
@@ -10,17 +15,12 @@ export const columnsRouter = Router();
 
 columnsRouter.patch(
   "/:columnId",
-  validateBody({ name: "text" }),
-  asyncHandler(async (request, response) => {
+  validateBody(columnUpdateSchema, async (body, request, response) => {
     const columnId = parseObjectId(
       readParam(request.params.columnId, "columnId"),
       "columnId",
     );
-    const { name } = request.body as { name?: string };
-
-    if (name === undefined || !name.trim()) {
-      throw badRequest("Column name is required");
-    }
+    const { name } = body;
 
     const column = await ColumnModel.findOne({
       _id: columnId,
@@ -58,7 +58,7 @@ columnsRouter.delete(
     const column = await ColumnModel.findOneAndUpdate(
       { _id: columnId, deletedAt: null },
       { deletedAt },
-      { new: true },
+      { returnDocument: "after" },
     );
 
     if (!column) {
@@ -88,20 +88,12 @@ columnsRouter.delete(
 
 columnsRouter.post(
   "/:columnId/cards",
-  validateBody({ title: "text", description: "description" }),
-  asyncHandler(async (request, response) => {
+  validateBody(cardCreateSchema, async (body, request, response) => {
     const columnId = parseObjectId(
       readParam(request.params.columnId, "columnId"),
       "columnId",
     );
-    const { title, description } = request.body as {
-      title?: string;
-      description?: string | null;
-    };
-
-    if (!title?.trim()) {
-      throw badRequest("Card title is required");
-    }
+    const { title, description } = body;
 
     const column = await ColumnModel.findOne({
       _id: columnId,
@@ -137,17 +129,12 @@ columnsRouter.post(
 
 columnsRouter.post(
   "/:columnId/cards/reorder",
-  validateBody({ cardOrder: "ids" }),
-  asyncHandler(async (request, response) => {
+  validateBody(cardReorderSchema, async (body, request, response) => {
     const columnId = parseObjectId(
       readParam(request.params.columnId, "columnId"),
       "columnId",
     );
-    const { cardOrder } = request.body as { cardOrder?: string[] };
-
-    if (!Array.isArray(cardOrder)) {
-      throw badRequest("cardOrder must be an array");
-    }
+    const { cardOrder } = body;
 
     const column = await ColumnModel.findOne({
       _id: columnId,

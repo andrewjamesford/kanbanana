@@ -388,3 +388,61 @@ test("seed is repeatable, preserves edits, and board deletion cascades soft dele
   );
   assert.equal(await seedData(), false);
 });
+
+test("Zod rejects invalid mutations for every body contract without changing board data", async () => {
+  const app = createApp();
+  const board = (
+    await request(app).post("/api/boards").send({ name: "Validation" })
+  ).body.data;
+  const column = (
+    await request(app)
+      .post(`/api/boards/${board._id}/columns`)
+      .send({ name: "Todo" })
+  ).body.data;
+  const card = (
+    await request(app)
+      .post(`/api/columns/${column._id}/cards`)
+      .send({ title: "Task" })
+  ).body.data;
+  const before = (await request(app).get(`/api/boards/${board._id}`)).body.data;
+  const cases = [
+    ["post", "/api/boards", { description: "Missing name" }],
+    ["patch", `/api/boards/${board._id}`, {}],
+    ["patch", `/api/boards/${board._id}`, { description: [] }],
+    ["post", `/api/boards/${board._id}/columns`, { name: null }],
+    ["patch", `/api/columns/${column._id}`, { name: " " }],
+    [
+      "post",
+      `/api/columns/${column._id}/cards`,
+      { description: "Missing title" },
+    ],
+    ["patch", `/api/cards/${card._id}`, { title: "x".repeat(201) }],
+    ["patch", `/api/cards/${card._id}`, { columnId: column._id }],
+    [
+      "post",
+      `/api/boards/${board._id}/columns/reorder`,
+      { columnOrder: [column._id, column._id.toUpperCase()] },
+    ],
+    ["post", `/api/columns/${column._id}/cards/reorder`, { cardOrder: [42] }],
+    [
+      "post",
+      `/api/cards/${card._id}/move`,
+      {
+        sourceColumnId: column._id,
+        destinationColumnId: column._id,
+        sourceCardOrder: [],
+        destinationCardOrder: [card._id],
+      },
+    ],
+  ] as const;
+  for (const [method, path, payload] of cases) {
+    const response = await request(app)[method](path).send(payload);
+    assert.equal(response.status, 400, path);
+    assert.equal(response.body.success, false);
+    assert.equal(typeof response.body.error, "string");
+  }
+  assert.deepEqual(
+    (await request(app).get(`/api/boards/${board._id}`)).body.data,
+    before,
+  );
+});
